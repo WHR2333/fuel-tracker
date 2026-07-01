@@ -23,5 +23,5 @@ jobs:
         with:
           push: true
           tags: |
-            whr2333/fuel-tracker:latest
-            whr2333/fuel-tracker:${{ github.sha }}
+            whr23333/fuel-tracker:latest
+            whr23333/fuel-tracker:${{ github.sha }}

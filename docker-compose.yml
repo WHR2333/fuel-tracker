@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   app:
-    image: whr2333/fuel-tracker:latest
+    image: whr23333/fuel-tracker:latest
     container_name: fuel-tracker
     restart: unless-stopped
     ports:
