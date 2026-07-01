@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  app:
+    image: whr2333/fuel-tracker:latest
+    container_name: fuel-tracker
+    restart: unless-stopped
+    ports:
+      - "5080:5000"
+    environment:
+      - MYSQL_HOST=mariadb
+      - MYSQL_PORT=3306
+      - MYSQL_USER=fuel
+      - MYSQL_PASSWORD=change_me_please
+      - MYSQL_DATABASE=fuel_tracker
+    volumes:
+      - ./data/backups:/backups
+    depends_on:
+      mariadb:
+        condition: service_healthy
+
+  mariadb:
+    image: mariadb:10.11
+    container_name: fuel-tracker-db
+    restart: unless-stopped
+    environment:
+      - MARIADB_ROOT_PASSWORD=root_change_me
+      - MARIADB_DATABASE=fuel_tracker
+      - MARIADB_USER=fuel
+      - MARIADB_PASSWORD=change_me_please
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db_data:
