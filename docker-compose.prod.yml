@@ -1,0 +1,14 @@
+# Production overrides — tighter secrets, no port exposure on db, CORS locked to real domain.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  db:
+    ports: []               # no external port in production
+
+  api:
+    environment:
+      API_KEY: ${API_KEY:?Set API_KEY in .env}
+      CORS_ORIGINS: ${CORS_ORIGINS:-'["https://fuel.example.com"]'}
+    ports:
+      - "8080:8000"
+    restart: always

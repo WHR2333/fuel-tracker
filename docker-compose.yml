@@ -1,0 +1,43 @@
+# docker-compose.yml — production (or single-server) deployment.
+#   docker compose up -d --build
+#
+# FastAPI serves both the API (/api/*) and the built React app (/).
+# MariaDB is exposed only to the api container; port 3306 is NOT published.
+
+services:
+  db:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-Fuel@2026TestRoot}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-fuel_tracker}
+      MYSQL_USER: ${MYSQL_USER:-fuel_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-Fuel@2026Test}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-8080}:8000"
+    environment:
+      MYSQL_HOST: db
+      MYSQL_PORT: "3306"
+      MYSQL_USER: ${MYSQL_USER:-fuel_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-Fuel@2026Test}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-fuel_tracker}
+      API_KEY: ${API_KEY:-change-me-in-production}
+      APP_ENV: prod
+      CORS_ORIGINS: ${CORS_ORIGINS:-'["http://localhost:8080"]'}
+
+volumes:
+  db_data:
