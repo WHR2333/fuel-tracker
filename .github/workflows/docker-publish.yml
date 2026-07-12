@@ -1,8 +1,9 @@
 name: Build & Push Docker Image
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - "v*"
 
 env:
   DOCKERHUB_REPO: whr2333/fuel-tracker
@@ -42,3 +43,15 @@ jobs:
           echo "### 🐳 Pushed" >> "$GITHUB_STEP_SUMMARY"
           echo "- \`${{ env.DOCKERHUB_REPO }}:${{ steps.tag.outputs.VERSION }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- \`${{ env.DOCKERHUB_REPO }}:latest\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: |
+            Docker image pushed:
+            - `docker pull ${{ env.DOCKERHUB_REPO }}:${{ steps.tag.outputs.VERSION }}`
+            - `docker pull ${{ env.DOCKERHUB_REPO }}:latest`
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
