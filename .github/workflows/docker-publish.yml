@@ -6,7 +6,7 @@ on:
       - "v*"
 
 env:
-  DOCKERHUB_REPO: whr2333/fuel-tracker
+  DOCKERHUB_REPO: whr23333/fuel-tracker
 
 jobs:
   build-push:
