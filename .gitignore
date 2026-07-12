@@ -1,5 +1,15 @@
-*.pyc
+# Python
 __pycache__/
-*.db
-data/
+*.py[oc]
+.venv/
 .env
+.pytest_cache/
+
+# Frontend
+static/node_modules/
+static/dist/
+static/.vite/
+*.tsbuildinfo
+
+# OS
+.DS_Store
