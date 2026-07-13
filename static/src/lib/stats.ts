@@ -55,21 +55,32 @@ export interface CostPrediction {
 // --- helpers ---
 
 /**
- * Two-full-tank method: only valid when BOTH current and previous records
- * are full tank (跳枪).  The liters filled at the current record then
- * equals the fuel consumed since the previous full tank.
+ * Two-full-tank method (两次加满法).
  *
- * A partial (non-full) record can never be an endpoint of a consumption
- * calculation because the starting fuel level is unknown.
+ * Given the current record (sorted[i]) which must be full tank, scan
+ * backwards to find the PREVIOUS full tank record.  Distance and
+ * consumption are computed against that previous full tank — any
+ * intermediate non-full records are skipped for distance purposes.
+ *
+ * Returns null if:
+ *   - current record is not full tank
+ *   - no previous full tank exists
+ *   - distance ≤ 0 or consumption is out of range
  */
-const validCon = (r: FuelRecord, prev: FuelRecord | undefined): number | null => {
-  if (!prev) return null;
-  if (r.fullTank !== "yes" || prev.fullTank !== "yes") return null;
-  const dist = num(r.odometer) - num(prev.odometer);
-  if (dist <= 0) return null;
-  const con = (num(r.liters) / dist) * 100;
-  if (!Number.isFinite(con) || con <= 0 || con >= 50) return null;
-  return con;
+const validCon = (sorted: FuelRecord[], i: number): number | null => {
+  const r = sorted[i];
+  if (r.fullTank !== "yes") return null;
+  // Scan backwards for the previous full tank record (跳枪).
+  for (let j = i - 1; j >= 0; j--) {
+    if (sorted[j].fullTank === "yes") {
+      const dist = num(r.odometer) - num(sorted[j].odometer);
+      if (dist <= 0) return null;
+      const con = (num(r.liters) / dist) * 100;
+      if (!Number.isFinite(con) || con <= 0 || con >= 50) return null;
+      return con;
+    }
+  }
+  return null; // no previous full tank found
 };
 
 // --- main entry ---
@@ -80,7 +91,7 @@ export const calcStats = (records: FuelRecord[]): Stats | null => {
 
   const consumptions: ConsumptionPoint[] = [];
   for (let i = 1; i < sorted.length; i++) {
-    const c = validCon(sorted[i], sorted[i - 1]);
+    const c = validCon(sorted, i);
     if (c == null) continue;
     consumptions.push({
       date: sorted[i].recordDate,
@@ -140,9 +151,13 @@ export const latestConsumption = (
 } | null => {
   const sorted = [...records].sort((a, b) => num(a.odometer) - num(b.odometer));
   for (let i = sorted.length - 1; i > 0; i--) {
-    const c = validCon(sorted[i], sorted[i - 1]);
+    const c = validCon(sorted, i);
     if (c != null) {
-      const cur = sorted[i], prev = sorted[i - 1];
+      const cur = sorted[i];
+      // Find the previous full tank record (跳枪).
+      let prevIdx = i - 1;
+      while (prevIdx >= 0 && sorted[prevIdx].fullTank !== "yes") prevIdx--;
+      const prev = sorted[prevIdx];
       const dist = num(cur.odometer) - num(prev.odometer);
       const days = Math.max(1, Math.round(
         (new Date(cur.recordDate).getTime() - new Date(prev.recordDate).getTime()) / 86400000,
