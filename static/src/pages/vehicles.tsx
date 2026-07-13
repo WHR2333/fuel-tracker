@@ -195,7 +195,7 @@ function ClearDataButton({ onClear }: { onClear: () => void }) {
         style={{ fontSize: 12, padding: "4px 10px", color: "var(--red)", borderColor: "var(--red)" }}
         onClick={() => setOpen(!open)}
       >
-        清空所有数据
+        清空我的数据
       </button>
       {open ? (
         <div style={{
