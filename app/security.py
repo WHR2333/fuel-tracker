@@ -149,7 +149,7 @@ async def login(body: LoginRequest, request: Request, session: Session = Depends
     ip = forwarded.split(",")[0].strip() if forwarded else (request.client.host if request.client else "unknown")
     _limiter.check(ip)
 
-    user = session.exec(select(User).where(User.username == body.username)).first()
+    user = session.execute(select(User).where(User.username == body.username)).scalars().first()
     if not user or not bcrypt.checkpw(body.password.encode(), user.password_hash.encode()):
         _limiter.record_failure(ip)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")

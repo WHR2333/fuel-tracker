@@ -38,11 +38,11 @@ def init_db() -> None:
     # --- migrate: add user_id column to existing vehicles if missing ---
     with Session(engine) as sess:
         try:
-            sess.exec(text("SELECT user_id FROM vehicles LIMIT 1"))  # noqa: S608
+            sess.execute(text("SELECT user_id FROM vehicles LIMIT 1"))  # noqa: S608
         except Exception:
             logger.info("Adding user_id column to vehicles table")
-            sess.exec(text("ALTER TABLE vehicles ADD COLUMN user_id VARCHAR(32) NULL"))  # noqa: S608
-            sess.exec(text(  # noqa: S608
+            sess.execute(text("ALTER TABLE vehicles ADD COLUMN user_id VARCHAR(32) NULL"))  # noqa: S608
+            sess.execute(text(  # noqa: S608
                 "CREATE INDEX IF NOT EXISTS ix_vehicles_user_id ON vehicles (user_id)"
             ))
             sess.commit()
@@ -69,9 +69,9 @@ def init_db() -> None:
             select(user.User).where(user.User.is_admin == True)  # noqa: E712
         ).first()
         if admin_user:
-            sess.exec(text(  # noqa: S608
+            sess.execute(text(  # noqa: S608
                 "UPDATE vehicles SET user_id = :uid WHERE user_id IS NULL"
-            ), {"uid": admin_user.id})
+            ).params(uid=admin_user.id))
             sess.commit()
 
 
