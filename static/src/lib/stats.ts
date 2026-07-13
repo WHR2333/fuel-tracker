@@ -89,10 +89,10 @@ const validCon = (sorted: FuelRecord[], i: number): ConResult | null => {
   const r = sorted[i];
   if (r.fullTank !== "yes") return null;
   if (r.skippedPrevious) return null;
-  // Sum all liters from previous full tank to current (inclusive).
+  // Sum liters from current record back to (but NOT including) previous full tank.
+  // The previous full tank is the baseline — its liters are NOT consumed fuel.
   let totalLiters = num(r.liters);
   for (let j = i - 1; j >= 0; j--) {
-    totalLiters += num(sorted[j].liters);
     if (sorted[j].fullTank === "yes") {
       const dist = num(r.odometer) - num(sorted[j].odometer);
       if (dist <= 0) return null;
@@ -100,6 +100,8 @@ const validCon = (sorted: FuelRecord[], i: number): ConResult | null => {
       if (!Number.isFinite(l_per_100) || l_per_100 <= 0 || l_per_100 >= 50) return null;
       return { l_per_100, totalLiters };
     }
+    // Non-full intermediate: its liters ARE consumed fuel.
+    totalLiters += num(sorted[j].liters);
   }
   return null; // no previous full tank found
 };
@@ -628,12 +630,12 @@ export const calcFuelTypeStats = (records: FuelRecord[]): FuelTypeStat[] => {
       // Sum all liters from prev full tank to current (inclusive).
       let totalLiters = num(sorted[i].liters);
       for (let j = i - 1; j >= 0; j--) {
-        totalLiters += num(sorted[j].liters);
         if (sorted[j].fullTank === "yes") {
           const dist = num(sorted[i].odometer) - num(sorted[j].odometer);
           if (dist > 0) consumptions.push((totalLiters / dist) * 100);
           break;
         }
+        totalLiters += num(sorted[j].liters);
       }
     }
     const avgConsumption = consumptions.length

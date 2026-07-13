@@ -330,7 +330,6 @@ function YearlyComparisonCard({ records, range, onRangeChange }: { records: Fuel
       if (cur.skippedPrevious) continue;
       let totalLiters = num(cur.liters);
       for (let j = i - 1; j >= 0; j--) {
-        totalLiters += num(sorted[j].liters);
         if (sorted[j].fullTank === "yes") {
           const dist = num(cur.odometer) - num(sorted[j].odometer);
           if (dist > 0) {
@@ -343,6 +342,7 @@ function YearlyComparisonCard({ records, range, onRangeChange }: { records: Fuel
           }
           break;
         }
+        totalLiters += num(sorted[j].liters);
       }
     }
     return Array.from({ length: 12 }, (_, i) => {

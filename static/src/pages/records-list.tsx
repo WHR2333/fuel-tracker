@@ -74,7 +74,7 @@ export function RecordsListPage() {
   const cards = scoped;
   const items: Array<
     | { kind: "card"; record: FuelRecord; con?: number; status?: RecordStatus }
-    | { kind: "gap"; id: string; km: number; estFuel: number | null; estCost: number | null }
+    | { kind: "gap"; id: string; km: number; estFuel: number | null; costPerKm: number }
   > = [];
 
   // Compute per-record consumption (needs sorted-by-odometer list, which is
@@ -91,17 +91,14 @@ export function RecordsListPage() {
     if (cur.skippedPrevious) continue;
     // Sum all liters from prev full tank to current (inclusive).
     let totalLiters = num(cur.liters);
-    let segStart = i; // track where this segment starts
+    let segStart = i;
     for (let j = i - 1; j >= 0; j--) {
-      totalLiters += num(sortedAsc[j].liters);
-      segStart = j;
       if (sortedAsc[j].fullTank === "yes") {
+        segStart = j;
         const dist = num(cur.odometer) - num(sortedAsc[j].odometer);
         if (dist > 0) {
           const c = (totalLiters / dist) * 100;
           if (c > 0 && c < 50) {
-            // Assign this consumption to the full record AND all preceding
-            // non-full records in the same segment.
             conMap.set(cur.id, c);
             for (let k = j + 1; k < i; k++) {
               conMap.set(sortedAsc[k].id, c);
@@ -110,6 +107,7 @@ export function RecordsListPage() {
         }
         break;
       }
+      totalLiters += num(sortedAsc[j].liters);
     }
   }
 
@@ -118,17 +116,21 @@ export function RecordsListPage() {
     const next = cards[i + 1];
     if (next) {
       const km = Math.round(num(cards[i].odometer) - num(next.odometer));
-      const price = num(cards[i].price);
-      // Use settled consumption rate for gap estimation if available.
+      // Gap uses NEXT record's known price and cost (not the current card's).
+      const nextPrice = num(next.price);
+      const nextLiters = num(next.liters);
+      const nextCost = num(next.paidAmount ?? next.totalCost);
+      // Use settled consumption rate for fuel estimation if available.
       const con = conMap.get(cards[i].id) ?? conMap.get(next.id);
       const estFuel = con != null && km > 0 ? (con * km) / 100 : null;
-      const estCost = estFuel != null && price > 0 ? estFuel * price : null;
+      // Cost is always known from the next record's actual data.
+      const costPerKm = km > 0 ? nextCost / km : 0;
       items.push({
         kind: "gap",
         id: `${cards[i].id}-${next.id}`,
         km,
         estFuel,
-        estCost,
+        costPerKm,
       });
     }
   }
@@ -216,7 +218,7 @@ export function RecordsListPage() {
                 onNavigate={() => navigate(`/records/${it.record.id}`)}
               />
             ) : (
-              <GapRow key={it.id} km={it.km} estFuel={it.estFuel} estCost={it.estCost} />
+              <GapRow key={it.id} km={it.km} estFuel={it.estFuel} costPerKm={it.costPerKm} />
             ),
           )}
         </div>
@@ -329,7 +331,7 @@ function Pill({ children, highlight }: { children: React.ReactNode; highlight?: 
   );
 }
 
-function GapRow({ km, estFuel, estCost }: { km: number; estFuel: number | null; estCost: number | null }) {
+function GapRow({ km, estFuel, costPerKm }: { km: number; estFuel: number | null; costPerKm: number }) {
   return (
     <div style={{
       textAlign: "center",
@@ -338,9 +340,11 @@ function GapRow({ km, estFuel, estCost }: { km: number; estFuel: number | null; 
       padding: "3px 0",
       marginBottom: 2,
     }}>
-      {estFuel != null && estCost != null
-        ? `预估用油 ${estFuel.toFixed(2)}升 · ¥${estCost.toFixed(2)} · 跑${km}公里`
-        : `跑${km}公里 · 下次加满后计算`}
+      {estFuel != null
+        ? `预估用油 ${estFuel.toFixed(2)}升 · ${costPerKm.toFixed(2)}元/公里 · 跑${km}公里`
+        : costPerKm > 0
+          ? `${costPerKm.toFixed(2)}元/公里 · 跑${km}公里 · 下次加满后计算油耗`
+          : `跑${km}公里 · 下次加满后计算`}
     </div>
   );
 }
@@ -354,7 +358,6 @@ function avgConsumption(records: FuelRecord[]): number | null {
     if (cur.skippedPrevious) continue;
     let totalLiters = num(cur.liters);
     for (let j = i - 1; j >= 0; j--) {
-      totalLiters += num(sorted[j].liters);
       if (sorted[j].fullTank === "yes") {
         const dist = num(cur.odometer) - num(sorted[j].odometer);
         if (dist > 0) {
@@ -363,6 +366,7 @@ function avgConsumption(records: FuelRecord[]): number | null {
         }
         break;
       }
+      totalLiters += num(sorted[j].liters);
     }
   }
   if (cs.length === 0) return null;
