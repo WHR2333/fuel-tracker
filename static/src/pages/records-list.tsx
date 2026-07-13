@@ -117,7 +117,7 @@ export function RecordsListPage() {
     items.push({ kind: "card", record: cards[i], con: conMap.get(cards[i].id), status: statusMap.get(cards[i].id) });
     const next = cards[i + 1];
     if (next) {
-      const km = num(cards[i].odometer) - num(next.odometer);
+      const km = Math.round(num(cards[i].odometer) - num(next.odometer));
       const price = num(cards[i].price);
       // Use settled consumption rate for gap estimation if available.
       const con = conMap.get(cards[i].id) ?? conMap.get(next.id);
@@ -339,8 +339,8 @@ function GapRow({ km, estFuel, estCost }: { km: number; estFuel: number | null; 
       marginBottom: 2,
     }}>
       {estFuel != null && estCost != null
-        ? `预估用油 ${estFuel.toFixed(2)}升 · ¥${estCost.toFixed(2)} · 跑${Math.round(km)}公里`
-        : `跑${Math.round(km)}公里 · 下次加满后计算`}
+        ? `预估用油 ${estFuel.toFixed(2)}升 · ¥${estCost.toFixed(2)} · 跑${km}公里`
+        : `跑${km}公里 · 下次加满后计算`}
     </div>
   );
 }
