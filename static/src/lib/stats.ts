@@ -54,9 +54,17 @@ export interface CostPrediction {
 
 // --- helpers ---
 
+/**
+ * Two-full-tank method: only valid when BOTH current and previous records
+ * are full tank (跳枪).  The liters filled at the current record then
+ * equals the fuel consumed since the previous full tank.
+ *
+ * A partial (non-full) record can never be an endpoint of a consumption
+ * calculation because the starting fuel level is unknown.
+ */
 const validCon = (r: FuelRecord, prev: FuelRecord | undefined): number | null => {
   if (!prev) return null;
-  if (r.fullTank !== "yes") return null;
+  if (r.fullTank !== "yes" || prev.fullTank !== "yes") return null;
   const dist = num(r.odometer) - num(prev.odometer);
   if (dist <= 0) return null;
   const con = (num(r.liters) / dist) * 100;
