@@ -33,6 +33,8 @@ export interface ConsumptionPoint {
   isAnomaly: boolean;
   /** Number of preceding non-full records merged into this calculation. */
   mergedCount: number;
+  /** Total liters consumed in this segment (current + intermediates). */
+  totalLiters: number;
 }
 
 export interface Stats {
@@ -56,13 +58,22 @@ export interface CostPrediction {
 
 // --- helpers ---
 
+interface ConResult {
+  l_per_100: number;
+  /** Total liters consumed since the previous full tank (inclusive of intermediates). */
+  totalLiters: number;
+}
+
 /**
  * Two-full-tank method (两次加满法).
  *
  * Given the current record (sorted[i]) which must be full tank, scan
  * backwards to find the PREVIOUS full tank record.  Distance and
- * consumption are computed against that previous full tank — any
- * intermediate non-full records are skipped for distance purposes.
+ * consumption are computed against that previous full tank.
+ *
+ * ALL liters from the previous full tank up to and including the current
+ * record are summed — this covers intermediate non-full fills whose fuel
+ * was consumed in the same segment.
  *
  * skippedPrevious: if true, there were unrecorded fill-ups before this
  * one — so this record cannot be the endpoint of a consumption segment.
@@ -74,18 +85,20 @@ export interface CostPrediction {
  *   - no previous full tank exists
  *   - distance ≤ 0 or consumption is out of range
  */
-const validCon = (sorted: FuelRecord[], i: number): number | null => {
+const validCon = (sorted: FuelRecord[], i: number): ConResult | null => {
   const r = sorted[i];
   if (r.fullTank !== "yes") return null;
   if (r.skippedPrevious) return null;
-  // Scan backwards for the previous full tank record (跳枪).
+  // Sum all liters from previous full tank to current (inclusive).
+  let totalLiters = num(r.liters);
   for (let j = i - 1; j >= 0; j--) {
+    totalLiters += num(sorted[j].liters);
     if (sorted[j].fullTank === "yes") {
       const dist = num(r.odometer) - num(sorted[j].odometer);
       if (dist <= 0) return null;
-      const con = (num(r.liters) / dist) * 100;
-      if (!Number.isFinite(con) || con <= 0 || con >= 50) return null;
-      return con;
+      const l_per_100 = (totalLiters / dist) * 100;
+      if (!Number.isFinite(l_per_100) || l_per_100 <= 0 || l_per_100 >= 50) return null;
+      return { l_per_100, totalLiters };
     }
   }
   return null; // no previous full tank found
@@ -99,8 +112,8 @@ export const calcStats = (records: FuelRecord[]): Stats | null => {
 
   const consumptions: ConsumptionPoint[] = [];
   for (let i = 1; i < sorted.length; i++) {
-    const c = validCon(sorted, i);
-    if (c == null) continue;
+    const result = validCon(sorted, i);
+    if (result == null) continue;
     // Count non-full records between prev full tank and current.
     let merged = 0;
     for (let j = i - 1; j >= 0; j--) {
@@ -112,9 +125,10 @@ export const calcStats = (records: FuelRecord[]): Stats | null => {
       odometer: num(sorted[i].odometer),
       liters: num(sorted[i].liters),
       price: num(sorted[i].price),
-      l_per_100: c,
+      l_per_100: result.l_per_100,
       isAnomaly: false, // backfilled below
       mergedCount: merged,
+      totalLiters: result.totalLiters,
     });
   }
 
@@ -177,17 +191,17 @@ export const latestConsumption = (
       const days = Math.max(1, Math.round(
         (new Date(cur.recordDate).getTime() - new Date(prev.recordDate).getTime()) / 86400000,
       ) + 1);
-      const liters = num(cur.liters);
+      // totalLiters from validCon includes intermediates + current.
       const totalCost = num(cur.totalCost);
       return {
         date: cur.recordDate,
         odometer: num(cur.odometer),
-        l_per_100: c,
+        l_per_100: c.l_per_100,
         costPerKm: dist > 0 ? totalCost / dist : 0,
         days,
         distance: dist,
         dailyAvg: dist / days,
-        liters,
+        liters: c.totalLiters,
         totalCost,
       };
     }
@@ -608,10 +622,13 @@ export const calcFuelTypeStats = (records: FuelRecord[]): FuelTypeStat[] => {
     for (let i = 1; i < sorted.length; i++) {
       if (sorted[i].fullTank !== "yes") continue;
       if (sorted[i].skippedPrevious) continue;
+      // Sum all liters from prev full tank to current (inclusive).
+      let totalLiters = num(sorted[i].liters);
       for (let j = i - 1; j >= 0; j--) {
+        totalLiters += num(sorted[j].liters);
         if (sorted[j].fullTank === "yes") {
           const dist = num(sorted[i].odometer) - num(sorted[j].odometer);
-          if (dist > 0) consumptions.push((num(sorted[i].liters) / dist) * 100);
+          if (dist > 0) consumptions.push((totalLiters / dist) * 100);
           break;
         }
       }

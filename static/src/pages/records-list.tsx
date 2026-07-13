@@ -86,13 +86,22 @@ export function RecordsListPage() {
     statusMap.set(sortedAsc[i].id, getRecordStatus(sortedAsc, i));
   }
   for (let i = 1; i < sortedAsc.length; i++) {
-    const prev = sortedAsc[i - 1];
     const cur = sortedAsc[i];
     if (cur.fullTank !== "yes") continue;
-    const dist = num(cur.odometer) - num(prev.odometer);
-    if (dist <= 0) continue;
-    const c = (num(cur.liters) / dist) * 100;
-    if (c > 0 && c < 50) conMap.set(cur.id, c);
+    if (cur.skippedPrevious) continue;
+    // Sum all liters from prev full tank to current (inclusive).
+    let totalLiters = num(cur.liters);
+    for (let j = i - 1; j >= 0; j--) {
+      totalLiters += num(sortedAsc[j].liters);
+      if (sortedAsc[j].fullTank === "yes") {
+        const dist = num(cur.odometer) - num(sortedAsc[j].odometer);
+        if (dist > 0) {
+          const c = (totalLiters / dist) * 100;
+          if (c > 0 && c < 50) conMap.set(cur.id, c);
+        }
+        break;
+      }
+    }
   }
 
   for (let i = 0; i < cards.length; i++) {
@@ -320,13 +329,21 @@ function avgConsumption(records: FuelRecord[]): number | null {
   const sorted = [...records].sort((a, b) => num(a.odometer) - num(b.odometer));
   const cs: number[] = [];
   for (let i = 1; i < sorted.length; i++) {
-    const prev = sorted[i - 1];
     const cur = sorted[i];
     if (cur.fullTank !== "yes") continue;
-    const dist = num(cur.odometer) - num(prev.odometer);
-    if (dist <= 0) continue;
-    const c = (num(cur.liters) / dist) * 100;
-    if (c > 0 && c < 50) cs.push(c);
+    if (cur.skippedPrevious) continue;
+    let totalLiters = num(cur.liters);
+    for (let j = i - 1; j >= 0; j--) {
+      totalLiters += num(sorted[j].liters);
+      if (sorted[j].fullTank === "yes") {
+        const dist = num(cur.odometer) - num(sorted[j].odometer);
+        if (dist > 0) {
+          const c = (totalLiters / dist) * 100;
+          if (c > 0 && c < 50) cs.push(c);
+        }
+        break;
+      }
+    }
   }
   if (cs.length === 0) return null;
   return cs.reduce((a, b) => a + b, 0) / cs.length;

@@ -325,16 +325,24 @@ function YearlyComparisonCard({ records, range, onRangeChange }: { records: Fuel
     const sorted = [...yearRecords].sort((a, b) => num(a.odometer) - num(b.odometer));
     const conByMonth = new Map<string, number[]>();
     for (let i = 1; i < sorted.length; i++) {
-      const prev = sorted[i - 1];
       const cur = sorted[i];
       if (cur.fullTank !== "yes") continue;
-      const dist = num(cur.odometer) - num(prev.odometer);
-      if (dist <= 0) continue;
-      const c = (num(cur.liters) / dist) * 100;
-      if (c > 0 && c < 50) {
-        const m = (cur.recordDate ?? "").slice(0, 7);
-        if (!conByMonth.has(m)) conByMonth.set(m, []);
-        conByMonth.get(m)!.push(c);
+      if (cur.skippedPrevious) continue;
+      let totalLiters = num(cur.liters);
+      for (let j = i - 1; j >= 0; j--) {
+        totalLiters += num(sorted[j].liters);
+        if (sorted[j].fullTank === "yes") {
+          const dist = num(cur.odometer) - num(sorted[j].odometer);
+          if (dist > 0) {
+            const c = (totalLiters / dist) * 100;
+            if (c > 0 && c < 50) {
+              const m = (cur.recordDate ?? "").slice(0, 7);
+              if (!conByMonth.has(m)) conByMonth.set(m, []);
+              conByMonth.get(m)!.push(c);
+            }
+          }
+          break;
+        }
       }
     }
     return Array.from({ length: 12 }, (_, i) => {
