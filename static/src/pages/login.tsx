@@ -4,7 +4,7 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { login, isAuthenticated, LoginError } from "@/lib/auth";
-import { Fuel, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -68,22 +68,13 @@ export function LoginPage() {
       >
         {/* Logo / title */}
         <div style={{ textAlign: "center", marginBottom: "0.5rem" }}>
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 56,
-              height: 56,
-              borderRadius: "50%",
-              background: "var(--accent)",
-              marginBottom: "0.75rem",
-            }}
-          >
-            <Fuel size={28} color="#fff" />
-          </div>
+          <img
+            src="/favicon.png"
+            alt="Logo"
+            style={{ width: 64, height: 64, marginBottom: "0.75rem" }}
+          />
           <h1 style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text)", margin: 0 }}>
-            Fuel Tracker
+            省点油
           </h1>
           <p style={{ fontSize: "0.85rem", color: "var(--text2)", marginTop: "0.25rem" }}>
             请登录以继续
