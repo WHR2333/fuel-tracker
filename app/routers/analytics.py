@@ -10,12 +10,12 @@ from app.db import get_session
 from app.models.fuel_record import FuelRecord
 from app.models.vehicle import Vehicle
 from app.schemas import AnalyticsResponse, MonthlyStat
-from app.security import verify_api_key
+from app.security import verify_token
 
 router = APIRouter(
     prefix="/api/v1/vehicles",
     tags=["analytics"],
-    dependencies=[Depends(verify_api_key)],
+    dependencies=[Depends(verify_token)],
 )
 
 

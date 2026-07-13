@@ -7,10 +7,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.db import init_db
 from app.routers import admin, analytics, maintenance, records, vehicles
+from app.security import router as auth_router
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    # Validate critical security settings before accepting traffic.
+    if not settings.admin_password:
+        raise RuntimeError("ADMIN_PASSWORD is not set. Refusing to start.")
+    if not settings.secret_key:
+        raise RuntimeError("SECRET_KEY is not set. Refusing to start.")
     init_db()
     yield
 
@@ -30,6 +36,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    app.include_router(auth_router)
     app.include_router(vehicles.router)
     app.include_router(records.router)
     app.include_router(maintenance.router)
@@ -39,12 +46,6 @@ def create_app() -> FastAPI:
     @app.get("/api/v1/health", tags=["meta"])
     def health() -> dict:
         return {"status": "ok", "env": settings.app_env}
-
-    @app.get("/api/v1/config", tags=["meta"])
-    def config() -> dict:
-        """Frontend calls this on startup to get runtime config (API key, etc.)
-        so the build doesn't need to bake in environment-specific values."""
-        return {"apiKey": settings.api_key}
 
     return app
 

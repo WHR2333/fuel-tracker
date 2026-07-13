@@ -35,7 +35,9 @@ services:
       MYSQL_USER: ${MYSQL_USER:-fuel_user}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-Fuel@2026Test}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-fuel_tracker}
-      API_KEY: ${API_KEY:-change-me-in-production}
+      ADMIN_USER: ${ADMIN_USER:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      SECRET_KEY: ${SECRET_KEY:?Generate with: python -c "import secrets; print(secrets.token_hex(32))"}
       APP_ENV: prod
       CORS_ORIGINS: ${CORS_ORIGINS:-'["http://localhost:8080"]'}
 

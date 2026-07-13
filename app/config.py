@@ -25,7 +25,10 @@ class Settings(BaseSettings):
     mysql_database: str = "fuel_tracker"
 
     # --- Auth ---
-    api_key: str = "dev-local-token-change-me"
+    admin_user: str = "admin"
+    admin_password: str = ""          # MUST be set via env / .env
+    secret_key: str = ""              # JWT signing key — generate with: python -c "import secrets; print(secrets.token_hex(32))"
+    token_expire_hours: int = 24
 
     # --- App ---
     app_env: str = "dev"  # dev | prod

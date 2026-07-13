@@ -7,12 +7,12 @@ from app.db import get_session
 from app.models.maintenance import MaintenanceRecord
 from app.models.vehicle import Vehicle
 from app.schemas import MaintenanceCreate, MaintenanceRead
-from app.security import verify_api_key
+from app.security import verify_token
 from app.services.helpers import gen_id
 
 router = APIRouter(
     tags=["maintenance"],
-    dependencies=[Depends(verify_api_key)],
+    dependencies=[Depends(verify_token)],
 )
 
 

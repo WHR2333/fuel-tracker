@@ -8,9 +8,10 @@
 
 import * as React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { FileText, Fuel, Sun, Moon } from "lucide-react";
+import { FileText, Fuel, Sun, Moon, LogOut } from "lucide-react";
 import { VehicleSelect } from "./vehicle-select";
 import type { Vehicle } from "@/lib/types";
+import { logout } from "@/lib/auth";
 
 const THEME_KEY = "fuel.theme";
 const HIDE_DASHBOARD_ROUTES = ["/records-list", "/records/", "/add", "/maintenance/new", "/maintenance/"];
@@ -41,6 +42,11 @@ export function PageHeader({ activeId, onSelect, vehicles }: Props) {
     localStorage.setItem(THEME_KEY, next);
   };
 
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
+
   React.useEffect(() => {
     const saved = localStorage.getItem(THEME_KEY);
     if (saved) {
@@ -59,14 +65,24 @@ export function PageHeader({ activeId, onSelect, vehicles }: Props) {
           <Fuel size={20} strokeWidth={1} style={{ marginRight: 6 }} />
           省点油
         </h1>
-        <button
-          className="theme-toggle"
-          onClick={toggleTheme}
-          title="切换主题"
-          aria-label="切换主题"
-        >
-          {theme === "dark" ? <Sun size={20} strokeWidth={1} /> : <Moon size={20} strokeWidth={1} />}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <button
+            className="theme-toggle"
+            onClick={toggleTheme}
+            title="切换主题"
+            aria-label="切换主题"
+          >
+            {theme === "dark" ? <Sun size={20} strokeWidth={1} /> : <Moon size={20} strokeWidth={1} />}
+          </button>
+          <button
+            className="theme-toggle"
+            onClick={handleLogout}
+            title="退出登录"
+            aria-label="退出登录"
+          >
+            <LogOut size={20} strokeWidth={1} />
+          </button>
+        </div>
       </div>
       {!hideDashboard && vehicles.length > 0 ? (
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginTop: 12, gap: 12 }}>

@@ -7,12 +7,12 @@ from app.db import get_session
 from app.models.fuel_record import FuelRecord
 from app.models.vehicle import Vehicle
 from app.schemas import FuelRecordCreate, FuelRecordRead
-from app.security import verify_api_key
+from app.security import verify_token
 from app.services.helpers import calc_total_cost, gen_id
 
 router = APIRouter(
     tags=["records"],
-    dependencies=[Depends(verify_api_key)],
+    dependencies=[Depends(verify_token)],
 )
 
 

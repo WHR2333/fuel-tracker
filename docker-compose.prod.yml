@@ -7,7 +7,9 @@ services:
 
   api:
     environment:
-      API_KEY: ${API_KEY:?Set API_KEY in .env}
+      ADMIN_USER: ${ADMIN_USER:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      SECRET_KEY: ${SECRET_KEY:?Generate with: python -c "import secrets; print(secrets.token_hex(32))"}
       CORS_ORIGINS: ${CORS_ORIGINS:-'["https://fuel.example.com"]'}
     ports:
       - "8080:8000"

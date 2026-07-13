@@ -11,6 +11,7 @@ dependencies = [
     "cryptography>=43",          # for PyMySQL caching_sha2_password
     "pydantic-settings>=2.6",
     "python-multipart>=0.0.20",  # for future file upload
+    "pyjwt>=2.9",                # JWT auth tokens
 ]
 
 [dependency-groups]

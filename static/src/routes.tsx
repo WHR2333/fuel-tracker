@@ -9,10 +9,12 @@
 // longer in the top nav.
 
 import * as React from "react";
-import { Navigate, createBrowserRouter } from "react-router-dom";
+import { Navigate, createBrowserRouter, Outlet } from "react-router-dom";
 import { ResponsiveShell } from "@/components/app-shell";
 import { vehicles as api } from "@/lib/api";
+import { isAuthenticated } from "@/lib/auth";
 import type { Vehicle } from "@/lib/types";
+import { LoginPage } from "@/pages/login";
 import { OverviewPage } from "@/pages/overview";
 import { AddPage } from "@/pages/add";
 import { StatsPage } from "@/pages/stats";
@@ -24,6 +26,11 @@ import { RecordDetailPage } from "@/pages/record-detail";
 import { MaintDetailPage } from "@/pages/maint-detail";
 import { ToastHost } from "@/components/toast-host";
 import { useVehiclesVersion } from "@/lib/stores";
+
+/** Redirects to /login when no valid token exists. */
+function RequireAuth() {
+  return isAuthenticated() ? <Outlet /> : <Navigate to="/login" replace />;
+}
 
 function ShellOutlet() {
   // Subscribing to the vehicles-version pub/sub is what makes the header
@@ -80,20 +87,29 @@ function ShellOutlet() {
 
 export const router = createBrowserRouter([
   {
-    path: "/",
-    element: <ShellOutlet />,
+    path: "/login",
+    element: <LoginPage />,
+  },
+  {
+    element: <RequireAuth />,
     children: [
-      { index: true, element: <OverviewPage /> },
-      { path: "add", element: <AddPage /> },
-      { path: "expenses", element: <ExpensesPage /> },
-      { path: "maintenance", element: <MaintenancePage /> },
-      { path: "maintenance/new", element: <MaintDetailPage /> },
-      { path: "maintenance/:mid", element: <MaintDetailPage /> },
-      { path: "vehicles", element: <VehiclesPage /> },
-      { path: "stats", element: <StatsPage /> },
-      { path: "records/:rid", element: <RecordDetailPage /> },
-      { path: "records-list", element: <RecordsListPage /> },
-      { path: "*", element: <Navigate to="/" replace /> },
+      {
+        path: "/",
+        element: <ShellOutlet />,
+        children: [
+          { index: true, element: <OverviewPage /> },
+          { path: "add", element: <AddPage /> },
+          { path: "expenses", element: <ExpensesPage /> },
+          { path: "maintenance", element: <MaintenancePage /> },
+          { path: "maintenance/new", element: <MaintDetailPage /> },
+          { path: "maintenance/:mid", element: <MaintDetailPage /> },
+          { path: "vehicles", element: <VehiclesPage /> },
+          { path: "stats", element: <StatsPage /> },
+          { path: "records/:rid", element: <RecordDetailPage /> },
+          { path: "records-list", element: <RecordsListPage /> },
+          { path: "*", element: <Navigate to="/" replace /> },
+        ],
+      },
     ],
   },
 ]);

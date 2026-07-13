@@ -728,3 +728,22 @@ input.form-input::placeholder { color: var(--text2); }
   .stat-value { font-size: 22px; }
   .nav-item { padding: 4px 6px; font-size: 9px; }
 }
+
+/* === login page === */
+
+.login-input {
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card2);
+  color: var(--text);
+  font-size: 0.9rem;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.login-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}

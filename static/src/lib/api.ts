@@ -12,18 +12,9 @@ import type {
   VehicleCreate,
   Trigger,
 } from "./types";
-import { getApiKey } from "./runtime-config";
+import { getToken, clearToken } from "./auth";
 
 const BASE = import.meta.env.VITE_API_BASE ?? "/api/v1";
-// KEY is resolved lazily — getApiKey() fetches /api/v1/config on first
-// call and caches the result. Falls back to the Vite-injected value
-// if the fetch fails (local dev without backend).
-let _cachedKey: string | null = null;
-const getKey = async () => {
-  if (_cachedKey !== null) return _cachedKey;
-  _cachedKey = await getApiKey();
-  return _cachedKey;
-};
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -32,15 +23,27 @@ export class ApiError extends Error {
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const key = await getKey();
+  const token = getToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${BASE}${path}`, {
     method,
-    headers: {
-      "Content-Type": "application/json",
-      "X-API-Key": key,
-    },
+    headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+
+  if (res.status === 401) {
+    // Token expired or invalid — clear and redirect to login
+    clearToken();
+    window.location.href = "/login";
+    throw new ApiError(401, "Session expired");
+  }
+
   if (!res.ok) {
     let detail = res.statusText;
     try {

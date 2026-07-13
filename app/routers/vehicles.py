@@ -7,13 +7,13 @@ from sqlmodel import Session
 from app.db import get_session
 from app.models.vehicle import Vehicle
 from app.schemas import VehicleCreate, VehicleRead
-from app.security import verify_api_key
+from app.security import verify_token
 from app.services.helpers import gen_id
 
 router = APIRouter(
     prefix="/api/v1/vehicles",
     tags=["vehicles"],
-    dependencies=[Depends(verify_api_key)],
+    dependencies=[Depends(verify_token)],
 )
 
 
