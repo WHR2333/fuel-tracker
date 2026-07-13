@@ -91,10 +91,8 @@ export function RecordsListPage() {
     if (cur.skippedPrevious) continue;
     // Sum all liters from prev full tank to current (inclusive).
     let totalLiters = num(cur.liters);
-    let segStart = i;
     for (let j = i - 1; j >= 0; j--) {
       if (sortedAsc[j].fullTank === "yes") {
-        segStart = j;
         const dist = num(cur.odometer) - num(sortedAsc[j].odometer);
         if (dist > 0) {
           const c = (totalLiters / dist) * 100;
@@ -116,9 +114,6 @@ export function RecordsListPage() {
     const next = cards[i + 1];
     if (next) {
       const km = Math.round(num(cards[i].odometer) - num(next.odometer));
-      // Gap uses NEXT record's known price and cost (not the current card's).
-      const nextPrice = num(next.price);
-      const nextLiters = num(next.liters);
       const nextCost = num(next.paidAmount ?? next.totalCost);
       // Use settled consumption rate for fuel estimation if available.
       const con = conMap.get(cards[i].id) ?? conMap.get(next.id);
