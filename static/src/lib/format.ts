@@ -196,5 +196,5 @@ export interface ReminderItem {
 
 export const vehicleLabel = (v: Vehicle | null | undefined): string => {
   if (!v) return "";
-  return v.plate || v.name || v.id;
+  return v.name || v.plate || v.id;
 };
