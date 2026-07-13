@@ -4,7 +4,8 @@
 // + other pages refresh.
 
 import * as React from "react";
-import { vehicles as api, admin } from "@/lib/api";
+import { useNavigate } from "react-router-dom";
+import { vehicles as api, admin, users as usersApi } from "@/lib/api";
 import type { Vehicle, ExportPayload } from "@/lib/types";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { cardTitle, AppIcon } from "@/components/app-icon";
@@ -13,6 +14,7 @@ import { num, vehicleLabel } from "@/lib/format";
 import { useActiveVehicle } from "@/lib/use-active-vehicle";
 import { pushToast } from "@/components/toast-host";
 import { notifyVehiclesChanged, notifyActiveVehicleChanged, notifyDataChanged } from "@/lib/stores";
+import { logout, isAdmin, getUsername } from "@/lib/auth";
 
 export function VehiclesPage() {
   const [list, setList] = React.useState<Vehicle[]>([]);
@@ -135,6 +137,9 @@ export function VehiclesPage() {
         </div>
       </div>
 
+      {/* ── Account ── */}
+      <AccountCard />
+
       <VehicleSheet
         open={adding || !!editing}
         editing={editing}
@@ -147,6 +152,66 @@ export function VehiclesPage() {
           notifyVehiclesChanged();
         }}
       />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Account card
+// ---------------------------------------------------------------------------
+
+function AccountCard() {
+  const navigate = useNavigate();
+  const username = getUsername() ?? "—";
+  const [showPwd, setShowPwd] = React.useState(false);
+  const [oldPwd, setOldPwd] = React.useState("");
+  const [newPwd, setNewPwd] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
+
+  const handleChangePwd = async () => {
+    if (!oldPwd || !newPwd) return;
+    setLoading(true);
+    try {
+      await usersApi.changeMyPassword(oldPwd, newPwd);
+      pushToast("密码已修改");
+      setShowPwd(false); setOldPwd(""); setNewPwd("");
+    } catch (e) { pushToast((e as Error).message); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="card">
+      <div className="card-title">{cardTitle("user", "账户")}</div>
+      <div style={{ fontSize: 14, marginBottom: 12 }}>
+        当前用户：<strong>{username}</strong>
+        {isAdmin() ? <span style={{ fontSize: 11, color: "var(--accent)", marginLeft: 8, background: "color-mix(in srgb, var(--accent) 12%, transparent)", padding: "2px 6px", borderRadius: 4 }}>管理员</span> : null}
+      </div>
+
+      {showPwd ? (
+        <div style={{ padding: 12, background: "var(--card2)", borderRadius: 8, border: "1px solid var(--border)", marginBottom: 12 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>修改密码</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 120px" }}>
+              <label style={{ fontSize: 11, color: "var(--text2)" }}>当前密码</label>
+              <input className="form-input" type="password" value={oldPwd} onChange={(e) => setOldPwd(e.target.value)} style={{ fontSize: 13, padding: "5px 8px" }} />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 120px" }}>
+              <label style={{ fontSize: 11, color: "var(--text2)" }}>新密码</label>
+              <input className="form-input" type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} style={{ fontSize: 13, padding: "5px 8px" }} />
+            </div>
+            <button className="btn btn-primary" style={{ width: "auto", padding: "6px 14px", fontSize: 12 }} disabled={loading} onClick={handleChangePwd}>
+              {loading ? "…" : "确定"}
+            </button>
+            <button className="btn btn-outline" style={{ width: "auto", padding: "6px 10px", fontSize: 12 }} onClick={() => { setShowPwd(false); setOldPwd(""); setNewPwd(""); }}>取消</button>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="btn-row">
+        <button className="btn btn-outline" onClick={() => setShowPwd(true)}>修改密码</button>
+        {isAdmin() ? <button className="btn btn-outline" onClick={() => navigate("/users")}>用户管理</button> : null}
+        <button className="btn btn-danger" onClick={() => { logout(); navigate("/login", { replace: true }); }}>退出登录</button>
+      </div>
     </div>
   );
 }
