@@ -1,4 +1,4 @@
-# Fuel Tracker v5
+# Fuel Tracker v6
 
 个人油耗记录与分析工具。FastAPI + React + MariaDB，Docker 一键部署。
 
@@ -37,22 +37,103 @@ APP_PORT=8080
 CORS_ORIGINS='["http://localhost:8080"]'
 ```
 
-> `SECRET_KEY` 和 `ADMIN_PASSWORD` 是必须设置的，缺少时 Docker Compose 会报错拒绝启动。
+> `SECRET_KEY` 和 `ADMIN_PASSWORD` 是必须设置的，缺少时容器会拒绝启动。
 
-### 2. 构建并启动
+### 2. 启动服务
+
+有两种部署方式：拉取预构建镜像（推荐）或本地源码构建。
+
+#### 方式 A：拉取 Docker Hub 镜像（推荐）
+
+无需本地构建，直接拉取已发布的镜像：
 
 ```bash
+# 创建 docker-compose.yml（也可直接复制项目中的文件）
+# 将 api 服务的 build 行替换为 image 行：
+
+services:
+  db:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-Fuel@2026TestRoot}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-fuel_tracker}
+      MYSQL_USER: ${MYSQL_USER:-fuel_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-Fuel@2026Test}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    image: whr23333/fuel-tracker:latest    # ← 拉取预构建镜像
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-8080}:8000"
+    environment:
+      MYSQL_HOST: db
+      MYSQL_PORT: "3306"
+      MYSQL_USER: ${MYSQL_USER:-fuel_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-Fuel@2026Test}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-fuel_tracker}
+      ADMIN_USER: ${ADMIN_USER:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      SECRET_KEY: ${SECRET_KEY:?Generate with: python -c "import secrets; print(secrets.token_hex(32))"}
+      APP_ENV: prod
+      CORS_ORIGINS: ${CORS_ORIGINS:-'["http://localhost:8080"]'}
+
+volumes:
+  db_data:
+```
+
+```bash
+docker compose up -d
+```
+
+#### 方式 B：本地源码构建
+
+克隆仓库后直接构建，适合需要修改代码的场景：
+
+```bash
+git clone https://github.com/WHR2333/fuel-tracker.git
+cd fuel-tracker
 docker compose up -d --build
 ```
 
-启动完成后访问 `http://localhost:8080`，会自动跳转到登录页。
-
 ### 3. 登录
 
-使用 `.env` 中配置的 `ADMIN_USER` / `ADMIN_PASSWORD` 登录。
+启动完成后访问 `http://你的服务器IP:8080`，使用 `.env` 中配置的 `ADMIN_USER` / `ADMIN_PASSWORD` 登录。
 
 - 连续 **5 次**密码错误会锁定该 IP **15 分钟**
 - 登录后 Token 有效期 **24 小时**，过期后自动跳转回登录页
+
+### 4. 常用运维命令
+
+```bash
+# 查看日志
+docker compose logs -f api
+
+# 重启服务
+docker compose restart
+
+# 更新到最新版本（方式 A）
+docker compose pull && docker compose up -d
+
+# 更新到最新版本（方式 B）
+git pull && docker compose up -d --build
+
+# 停止并删除容器（数据卷保留）
+docker compose down
+
+# 停止并删除所有数据（包括数据库）
+docker compose down -v
+```
 
 ## 环境变量一览
 
