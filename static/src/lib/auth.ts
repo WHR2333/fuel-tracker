@@ -21,19 +21,36 @@ export function clearToken(): void {
 
 // ---- predicates ----
 
+/** Decode JWT payload without verifying (server verifies). */
+function decodePayload(): Record<string, unknown> | null {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    return JSON.parse(atob(token.split(".")[1]));
+  } catch {
+    return null;
+  }
+}
+
 /** True when a non-expired token exists in storage. */
 export function isAuthenticated(): boolean {
-  const token = getToken();
-  if (!token) return false;
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    // exp is in seconds
-    return typeof payload.exp === "number" && payload.exp * 1000 > Date.now();
-  } catch {
-    // malformed token — treat as unauthenticated
+  const p = decodePayload();
+  if (!p) return false;
+  if (typeof p.exp !== "number" || p.exp * 1000 <= Date.now()) {
     clearToken();
     return false;
   }
+  return true;
+}
+
+/** Return current username from JWT, or null. */
+export function getUsername(): string | null {
+  return (decodePayload()?.sub as string) ?? null;
+}
+
+/** Return whether the current user is an admin. */
+export function isAdmin(): boolean {
+  return decodePayload()?.admin === true;
 }
 
 // ---- actions ----

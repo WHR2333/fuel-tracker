@@ -1,13 +1,4 @@
-"""Admin / data-portability router.
-
-* GET  /api/v1/admin/export  → JSON dump of every vehicle + its records + maintenance.
-* POST /api/v1/admin/import  → accept a dump and write it back, replacing any rows
-                                whose IDs collide. Vehicles not in the dump are kept.
-
-The schema is intentionally loose (Dict[str, Any]) on import so the route can
-accept both v4 (camelCase) and v5 (snake_case) payloads — v4 produced a
-localStorage dump we want to round-trip without forcing a translation step.
-"""
+"""Admin / data-portability router — scoped to current user's data."""
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
@@ -21,17 +12,12 @@ from app.db import get_session
 from app.models.fuel_record import FuelRecord
 from app.models.maintenance import MaintenanceRecord
 from app.models.vehicle import Vehicle
-from app.security import verify_token
+from app.security import CurrentUser, verify_token
 
-router = APIRouter(
-    prefix="/api/v1/admin",
-    tags=["admin"],
-    dependencies=[Depends(verify_token)],
-)
+router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
 
 def _to_jsonable(value: Any) -> Any:
-    """Dates and Decimals → strings; everything else passes through."""
     if isinstance(value, (datetime, date)):
         return value.isoformat()
     if isinstance(value, Decimal):
@@ -40,16 +26,25 @@ def _to_jsonable(value: Any) -> Any:
 
 
 def _row_to_dict(row) -> dict[str, Any]:
-    """Serialize a SQLModel row by column name."""
     return {c.name: _to_jsonable(getattr(row, c.name)) for c in row.__table__.columns}
 
 
 @router.get("/export")
-def export_data(session: Session = Depends(get_session)) -> dict[str, Any]:
-    """Dump the whole DB into one JSON envelope."""
-    vehicles = list(session.execute(select(Vehicle)).scalars().all())
-    records = list(session.execute(select(FuelRecord)).scalars().all())
-    maint = list(session.execute(select(MaintenanceRecord)).scalars().all())
+def export_data(
+    current: CurrentUser = Depends(verify_token),
+    session: Session = Depends(get_session),
+) -> dict[str, Any]:
+    """Export only the current user's data."""
+    vehicles = list(
+        session.execute(select(Vehicle).where(Vehicle.user_id == current.id)).scalars().all()
+    )
+    vids = {v.id for v in vehicles}
+    records = list(
+        session.execute(select(FuelRecord).where(FuelRecord.vehicle_id.in_(vids or {""}))).scalars().all()
+    )
+    maint = list(
+        session.execute(select(MaintenanceRecord).where(MaintenanceRecord.vehicle_id.in_(vids or {""}))).scalars().all()
+    )
     return {
         "version": "v5",
         "exported_at": datetime.utcnow().isoformat(),
@@ -68,18 +63,21 @@ class ImportRequest(BaseModel):
 @router.post("/import")
 def import_data(
     payload: ImportRequest,
+    current: CurrentUser = Depends(verify_token),
     session: Session = Depends(get_session),
 ) -> dict[str, int]:
-    """Upsert each row from the dump. Existing rows with the same id get replaced."""
-    # First wipe the related tables; vehicle FKs already CASCADE on delete so this
-    # also clears orphaned rows. We don't touch the vehicles table itself unless
-    # its ID is in the dump — that way partial imports don't destroy unrelated data.
+    """Import data scoped to the current user."""
     incoming_vids = {v["id"] for v in payload.vehicles if "id" in v}
 
-    # Drop records/maint for vehicles NOT in the dump; the dump authoritatively
-    # says what the world looks like.
-    session.execute(delete(FuelRecord).where(~FuelRecord.vehicle_id.in_(incoming_vids or {""})))
-    session.execute(delete(MaintenanceRecord).where(~MaintenanceRecord.vehicle_id.in_(incoming_vids or {""})))
+    # Only touch vehicles/records belonging to this user.
+    user_vids = {
+        v.id for v in
+        session.execute(select(Vehicle).where(Vehicle.user_id == current.id)).scalars().all()
+    }
+    affected_vids = user_vids & incoming_vids if incoming_vids else set()
+
+    session.execute(delete(FuelRecord).where(FuelRecord.vehicle_id.in_(affected_vids or {""})))
+    session.execute(delete(MaintenanceRecord).where(MaintenanceRecord.vehicle_id.in_(affected_vids or {""})))
 
     counts = {"vehicles": 0, "records": 0, "maint": 0}
     for v in payload.vehicles:
@@ -87,14 +85,21 @@ def import_data(
             continue
         existing = session.get(Vehicle, v["id"])
         if existing:
+            if existing.user_id != current.id:
+                continue
             for k, val in v.items():
                 setattr(existing, k, val)
         else:
-            session.add(Vehicle(**{k: v[k] for k in ("id", "name", "plate", "tank", "model") if k in v}))
+            session.add(Vehicle(
+                **{k: v[k] for k in ("id", "name", "plate", "tank", "model") if k in v},
+                user_id=current.id,
+            ))
         counts["vehicles"] += 1
 
     for r in payload.records:
         if "id" not in r or "vehicle_id" not in r:
+            continue
+        if r["vehicle_id"] not in incoming_vids:
             continue
         existing = session.get(FuelRecord, r["id"])
         fields = {k: r[k] for k in r if k != "created_at"}
@@ -102,13 +107,14 @@ def import_data(
             for k, val in fields.items():
                 setattr(existing, k, val)
         else:
-            # light may be absent from old dumps; default to False.
             fields.setdefault("light", False)
             session.add(FuelRecord(**fields))
         counts["records"] += 1
 
     for m in payload.maint:
         if "id" not in m or "vehicle_id" not in m:
+            continue
+        if m["vehicle_id"] not in incoming_vids:
             continue
         existing = session.get(MaintenanceRecord, m["id"])
         fields = {k: m[k] for k in m if k != "created_at"}

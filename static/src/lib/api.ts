@@ -258,6 +258,20 @@ export const admin = {
   },
 };
 
+// --- Users (admin) ---
+
+export const users = {
+  list: async () =>
+    request<Array<{ id: string; username: string; is_admin: boolean }>>("GET", "/users"),
+  create: async (username: string, password: string) =>
+    request<{ id: string; username: string; is_admin: boolean }>("POST", "/users", { username, password }),
+  remove: async (uid: string) => request<void>("DELETE", `/users/${uid}`),
+  setPassword: async (uid: string, newPassword: string) =>
+    request<{ detail: string }>(`PUT`, `/users/${uid}/password`, { new_password: newPassword }),
+  changeMyPassword: async (oldPassword: string, newPassword: string) =>
+    request<{ detail: string }>("PUT", "/auth/password", { old_password: oldPassword, new_password: newPassword }),
+};
+
 // --- Health ---
 
 export const meta = {

@@ -24,6 +24,7 @@ import { ExpensesPage } from "@/pages/expenses";
 import { RecordsListPage } from "@/pages/records-list";
 import { RecordDetailPage } from "@/pages/record-detail";
 import { MaintDetailPage } from "@/pages/maint-detail";
+import { UsersPage } from "@/pages/users";
 import { ToastHost } from "@/components/toast-host";
 import { useVehiclesVersion } from "@/lib/stores";
 
@@ -105,6 +106,7 @@ export const router = createBrowserRouter([
           { path: "maintenance/:mid", element: <MaintDetailPage /> },
           { path: "vehicles", element: <VehiclesPage /> },
           { path: "stats", element: <StatsPage /> },
+          { path: "users", element: <UsersPage /> },
           { path: "records/:rid", element: <RecordDetailPage /> },
           { path: "records-list", element: <RecordsListPage /> },
           { path: "*", element: <Navigate to="/" replace /> },

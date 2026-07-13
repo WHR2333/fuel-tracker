@@ -8,21 +8,20 @@ from sqlmodel import Session
 
 from app.db import get_session
 from app.models.fuel_record import FuelRecord
-from app.models.vehicle import Vehicle
 from app.schemas import AnalyticsResponse, MonthlyStat
-from app.security import verify_token
+from app.security import CurrentUser, verify_token
+from app.services.helpers import get_user_vehicle
 
-router = APIRouter(
-    prefix="/api/v1/vehicles",
-    tags=["analytics"],
-    dependencies=[Depends(verify_token)],
-)
+router = APIRouter(prefix="/api/v1/vehicles", tags=["analytics"])
 
 
 @router.get("/{vid}/analytics", response_model=AnalyticsResponse)
-def get_analytics(vid: str, session: Session = Depends(get_session)) -> AnalyticsResponse:
-    if not session.get(Vehicle, vid):
-        raise HTTPException(404, "vehicle not found")
+def get_analytics(
+    vid: str,
+    current: CurrentUser = Depends(verify_token),
+    session: Session = Depends(get_session),
+) -> AnalyticsResponse:
+    get_user_vehicle(vid, current.id, session)
 
     stmt = (
         select(FuelRecord)

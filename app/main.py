@@ -9,7 +9,7 @@ from starlette.staticfiles import StaticFiles
 
 from app.config import settings
 from app.db import init_db
-from app.routers import admin, analytics, maintenance, records, vehicles
+from app.routers import admin, analytics, maintenance, records, users, vehicles
 from app.security import router as auth_router
 
 _STATIC_DIR = Path("/app/static_dist")
@@ -42,6 +42,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(auth_router)
+    app.include_router(users.router)
     app.include_router(vehicles.router)
     app.include_router(records.router)
     app.include_router(maintenance.router)

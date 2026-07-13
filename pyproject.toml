@@ -12,6 +12,7 @@ dependencies = [
     "pydantic-settings>=2.6",
     "python-multipart>=0.0.20",  # for future file upload
     "pyjwt>=2.9",                # JWT auth tokens
+    "bcrypt>=4",                  # password hashing
 ]
 
 [dependency-groups]

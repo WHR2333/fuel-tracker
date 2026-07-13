@@ -1,19 +1,15 @@
-"""Maintenance record CRUD router."""
+"""Maintenance record CRUD router — scoped to current user's vehicles."""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlmodel import Session
 
 from app.db import get_session
 from app.models.maintenance import MaintenanceRecord
-from app.models.vehicle import Vehicle
 from app.schemas import MaintenanceCreate, MaintenanceRead
-from app.security import verify_token
-from app.services.helpers import gen_id
+from app.security import CurrentUser, verify_token
+from app.services.helpers import gen_id, get_user_vehicle
 
-router = APIRouter(
-    tags=["maintenance"],
-    dependencies=[Depends(verify_token)],
-)
+router = APIRouter(tags=["maintenance"])
 
 
 def _apply(payload: MaintenanceCreate, m: MaintenanceRecord) -> None:
@@ -34,10 +30,11 @@ def _apply(payload: MaintenanceCreate, m: MaintenanceRecord) -> None:
     response_model=list[MaintenanceRead],
 )
 def list_maintenance(
-    vid: str, session: Session = Depends(get_session)
+    vid: str,
+    current: CurrentUser = Depends(verify_token),
+    session: Session = Depends(get_session),
 ) -> list[MaintenanceRecord]:
-    if not session.get(Vehicle, vid):
-        raise HTTPException(404, "vehicle not found")
+    get_user_vehicle(vid, current.id, session)
     stmt = (
         select(MaintenanceRecord)
         .where(MaintenanceRecord.vehicle_id == vid)
@@ -54,17 +51,14 @@ def list_maintenance(
 def create_maintenance(
     vid: str,
     payload: MaintenanceCreate,
+    current: CurrentUser = Depends(verify_token),
     session: Session = Depends(get_session),
 ) -> MaintenanceRecord:
-    if not session.get(Vehicle, vid):
-        raise HTTPException(404, "vehicle not found")
+    get_user_vehicle(vid, current.id, session)
     mid = payload.id or gen_id("m")
     if session.get(MaintenanceRecord, mid):
         raise HTTPException(409, f"maintenance {mid} already exists")
-    m = MaintenanceRecord(
-        id=mid,
-        vehicle_id=vid,
-    )
+    m = MaintenanceRecord(id=mid, vehicle_id=vid)
     _apply(payload, m)
     session.add(m)
     session.flush()
@@ -72,15 +66,22 @@ def create_maintenance(
     return m
 
 
+def _get_maint_for_user(mid: str, user_id: str, session: Session) -> MaintenanceRecord:
+    m = session.get(MaintenanceRecord, mid)
+    if not m:
+        raise HTTPException(404, "maintenance not found")
+    get_user_vehicle(m.vehicle_id, user_id, session)
+    return m
+
+
 @router.put("/api/v1/maintenance/{mid}", response_model=MaintenanceRead)
 def update_maintenance(
     mid: str,
     payload: MaintenanceCreate,
+    current: CurrentUser = Depends(verify_token),
     session: Session = Depends(get_session),
 ) -> MaintenanceRecord:
-    m = session.get(MaintenanceRecord, mid)
-    if not m:
-        raise HTTPException(404, "maintenance not found")
+    m = _get_maint_for_user(mid, current.id, session)
     _apply(payload, m)
     session.add(m)
     session.flush()
@@ -90,9 +91,9 @@ def update_maintenance(
 
 @router.delete("/api/v1/maintenance/{mid}", status_code=204)
 def delete_maintenance(
-    mid: str, session: Session = Depends(get_session)
+    mid: str,
+    current: CurrentUser = Depends(verify_token),
+    session: Session = Depends(get_session),
 ) -> None:
-    m = session.get(MaintenanceRecord, mid)
-    if not m:
-        raise HTTPException(404, "maintenance not found")
+    m = _get_maint_for_user(mid, current.id, session)
     session.delete(m)

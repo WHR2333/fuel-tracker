@@ -1,20 +1,40 @@
 """Authentication: JWT login with brute-force protection.
 
-Replaces the old static API-key approach.  Credentials are checked against
-ADMIN_USER / ADMIN_PASSWORD from environment variables.
+Credentials are checked against the users table (bcrypt).
+On first startup the admin user is seeded from env vars.
 """
 from __future__ import annotations
 
 import datetime as _dt
 import time
 from dataclasses import dataclass, field
+from typing import Optional
 
+import bcrypt
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlmodel import Session
 
 from app.config import settings
+from app.db import get_session
+from app.models.user import User
+
+# ---------------------------------------------------------------------------
+# Current-user DTO returned by verify_token
+# ---------------------------------------------------------------------------
+
+
+class CurrentUser:
+    __slots__ = ("id", "username", "is_admin")
+
+    def __init__(self, id: str, username: str, is_admin: bool) -> None:
+        self.id = id
+        self.username = username
+        self.is_admin = is_admin
+
 
 # ---------------------------------------------------------------------------
 # JWT helpers
@@ -23,17 +43,16 @@ from app.config import settings
 _ALGORITHM = "HS256"
 
 
-def _create_token(username: str) -> str:
+def _create_token(user: User) -> str:
     expire = _dt.datetime.now(_dt.timezone.utc) + _dt.timedelta(hours=settings.token_expire_hours)
-    payload = {"sub": username, "exp": expire}
+    payload = {"sub": user.username, "uid": user.id, "admin": user.is_admin, "exp": expire}
     return jwt.encode(payload, settings.secret_key, algorithm=_ALGORITHM)
 
 
-def _decode_token(token: str) -> str:
-    """Return the username from a valid JWT; raise 401 on any failure."""
+def _decode_token(token: str) -> dict:
+    """Return the JWT payload; raise 401 on any failure."""
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[_ALGORITHM])
-        return payload["sub"]
+        return jwt.decode(token, settings.secret_key, algorithms=[_ALGORITHM])
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
     except jwt.InvalidTokenError:
@@ -45,11 +64,23 @@ _bearer_scheme = HTTPBearer(auto_error=False)
 
 async def verify_token(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
-) -> str:
-    """FastAPI dependency — returns the authenticated username."""
+) -> CurrentUser:
+    """FastAPI dependency — returns the authenticated user."""
     if credentials is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
-    return _decode_token(credentials.credentials)
+    payload = _decode_token(credentials.credentials)
+    return CurrentUser(
+        id=payload.get("uid", ""),
+        username=payload.get("sub", ""),
+        is_admin=bool(payload.get("admin", False)),
+    )
+
+
+async def require_admin(user: CurrentUser = Depends(verify_token)) -> CurrentUser:
+    """FastAPI dependency — rejects non-admin users."""
+    if not user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin only")
+    return user
 
 
 # ---------------------------------------------------------------------------
@@ -58,16 +89,11 @@ async def verify_token(
 
 @dataclass
 class _AttemptTracker:
-    """Track failed login attempts per IP with auto-expiring lockouts."""
-
     max_failures: int = 5
     lockout_seconds: int = 900  # 15 minutes
-
-    # ip → (fail_count, locked_until_timestamp)
     _store: dict[str, tuple[int, float]] = field(default_factory=dict)
 
     def check(self, ip: str) -> None:
-        """Raise 429 if the IP is currently locked out."""
         entry = self._store.get(ip)
         if entry is None:
             return
@@ -79,7 +105,6 @@ class _AttemptTracker:
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f"Too many failed attempts. Try again in {remaining}s.",
             )
-        # Lockout expired — reset
         if now >= locked_until and count >= self.max_failures:
             self._store.pop(ip, None)
 
@@ -97,7 +122,7 @@ _limiter = _AttemptTracker()
 
 
 # ---------------------------------------------------------------------------
-# Login endpoint
+# Login / password endpoints
 # ---------------------------------------------------------------------------
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -113,23 +138,41 @@ class LoginResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+
 @router.post("/login", response_model=LoginResponse)
-async def login(body: LoginRequest, request: Request) -> LoginResponse:
-    # Prefer the real client IP from X-Forwarded-For (set by reverse proxies).
+async def login(body: LoginRequest, request: Request, session: Session = Depends(get_session)) -> LoginResponse:
     forwarded = request.headers.get("x-forwarded-for")
     ip = forwarded.split(",")[0].strip() if forwarded else (request.client.host if request.client else "unknown")
     _limiter.check(ip)
 
-    if body.username != settings.admin_user or body.password != settings.admin_password:
+    user = session.exec(select(User).where(User.username == body.username)).first()
+    if not user or not bcrypt.checkpw(body.password.encode(), user.password_hash.encode()):
         _limiter.record_failure(ip)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     _limiter.record_success(ip)
-    token = _create_token(body.username)
+    token = _create_token(user)
     return LoginResponse(access_token=token)
 
 
 @router.get("/me")
-async def me(username: str = Depends(verify_token)) -> dict:
-    """Validate a token and return the username."""
-    return {"username": username}
+async def me(current: CurrentUser = Depends(verify_token)) -> dict:
+    return {"username": current.username, "is_admin": current.is_admin}
+
+
+@router.put("/password")
+async def change_own_password(
+    body: ChangePasswordRequest,
+    current: CurrentUser = Depends(verify_token),
+    session: Session = Depends(get_session),
+) -> dict:
+    user = session.get(User, current.id)
+    if not user or not bcrypt.checkpw(body.old_password.encode(), user.password_hash.encode()):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Old password is incorrect")
+    user.password_hash = bcrypt.hashpw(body.new_password.encode(), bcrypt.gensalt()).decode()
+    session.add(user)
+    return {"detail": "Password changed"}
