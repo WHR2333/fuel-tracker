@@ -26,7 +26,7 @@ import { RecordDetailPage } from "@/pages/record-detail";
 import { MaintDetailPage } from "@/pages/maint-detail";
 import { UsersPage } from "@/pages/users";
 import { ToastHost } from "@/components/toast-host";
-import { useVehiclesVersion } from "@/lib/stores";
+import { useVehiclesVersion, useActiveVehicleVersion, notifyActiveVehicleChanged } from "@/lib/stores";
 
 /** Redirects to /login when no valid token exists. */
 function RequireAuth() {
@@ -40,11 +40,18 @@ function ShellOutlet() {
   // re-fetch — without it, calling useVehiclesVersion() alone would only
   // cause a re-render but wouldn't re-run the effect.
   const vehiclesVer = useVehiclesVersion();
+  const activeVer = useActiveVehicleVersion();
 
   const [vehicles, setVehicles] = React.useState<Vehicle[]>([]);
   const [activeId, setActiveId] = React.useState<string | null>(() =>
     typeof window !== "undefined" ? localStorage.getItem("fuel.activeVehicleId") : null,
   );
+
+  // Sync activeId when another component (e.g. VehiclesPage card) changes it.
+  React.useEffect(() => {
+    const id = localStorage.getItem("fuel.activeVehicleId");
+    setActiveId(id);
+  }, [activeVer]);
 
   const reload = React.useCallback(async () => {
     try {
@@ -76,6 +83,7 @@ function ShellOutlet() {
   const onSelect = React.useCallback((id: string) => {
     setActiveId(id);
     localStorage.setItem("fuel.activeVehicleId", id);
+    notifyActiveVehicleChanged();
   }, []);
 
   return (
