@@ -119,9 +119,9 @@ export function VehiclesPage() {
 
       <div className="card">
         <div className="card-title">{cardTitle("wrench", "数据管理")}</div>
-        <div className="btn-row">
-          <button className="btn btn-outline" onClick={handleExportTxt}>导出数据</button>
-          <label className="btn btn-outline" style={{ cursor: "pointer" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <button className="btn btn-outline" style={{ flex: "0 0 auto", padding: "6px 12px", fontSize: 13 }} onClick={handleExportTxt}>导出数据</button>
+          <label className="btn btn-outline" style={{ flex: "0 0 auto", padding: "6px 12px", fontSize: 13, cursor: "pointer" }}>
             导入数据
             <input
               type="file"
@@ -134,8 +134,7 @@ export function VehiclesPage() {
               }}
             />
           </label>
-        </div>
-        <div style={{ marginTop: 12, textAlign: "right" }}>
+          <div style={{ flex: 1 }} />
           <ClearDataButton onClear={clearAll} />
         </div>
       </div>
