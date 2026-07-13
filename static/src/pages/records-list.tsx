@@ -114,12 +114,18 @@ export function RecordsListPage() {
     const next = cards[i + 1];
     if (next) {
       const km = Math.round(num(cards[i].odometer) - num(next.odometer));
-      const nextCost = num(next.paidAmount ?? next.totalCost);
-      // Use settled consumption rate for fuel estimation if available.
+      // Use settled consumption rate if available for consistent estimates.
       const con = conMap.get(cards[i].id) ?? conMap.get(next.id);
       const estFuel = con != null && km > 0 ? (con * km) / 100 : null;
-      // Cost is always known from the next record's actual data.
-      const costPerKm = km > 0 ? nextCost / km : 0;
+      let costPerKm = 0;
+      if (con != null) {
+        // Find the full tank record that settled this segment for its price.
+        const settledCard = conMap.has(cards[i].id) ? cards[i] : next;
+        costPerKm = con * num(settledCard.price) / 100;
+      } else if (km > 0) {
+        // No settled rate — use next record's actual cost.
+        costPerKm = num(next.paidAmount ?? next.totalCost) / km;
+      }
       items.push({
         kind: "gap",
         id: `${cards[i].id}-${next.id}`,
