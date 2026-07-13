@@ -116,18 +116,41 @@ export const calcStats = (records: FuelRecord[]): Stats | null => {
   };
 };
 
-/** Most recent computed consumption (L/100km), or null if not enough data. */
+/** Most recent computed consumption, or null if not enough data. */
 export const latestConsumption = (
   records: FuelRecord[],
-): { date: string; odometer: number; l_per_100: number } | null => {
+): {
+  date: string;
+  odometer: number;
+  l_per_100: number;
+  costPerKm: number;
+  days: number;
+  distance: number;
+  dailyAvg: number;
+  liters: number;
+  totalCost: number;
+} | null => {
   const sorted = [...records].sort((a, b) => num(a.odometer) - num(b.odometer));
   for (let i = sorted.length - 1; i > 0; i--) {
     const c = validCon(sorted[i], sorted[i - 1]);
     if (c != null) {
+      const cur = sorted[i], prev = sorted[i - 1];
+      const dist = num(cur.odometer) - num(prev.odometer);
+      const days = Math.max(1, Math.round(
+        (new Date(cur.recordDate).getTime() - new Date(prev.recordDate).getTime()) / 86400000,
+      ));
+      const liters = num(cur.liters);
+      const totalCost = num(cur.totalCost);
       return {
-        date: sorted[i].recordDate,
-        odometer: num(sorted[i].odometer),
+        date: cur.recordDate,
+        odometer: num(cur.odometer),
         l_per_100: c,
+        costPerKm: dist > 0 ? totalCost / dist : 0,
+        days,
+        distance: dist,
+        dailyAvg: dist / days,
+        liters,
+        totalCost,
       };
     }
   }

@@ -30,7 +30,7 @@ import { EmptyState } from "@/components/empty-state";
 import { TimeRangePicker, type TimeRange } from "@/components/time-range-picker";
 import { records as api } from "@/lib/api";
 import type { FuelRecord } from "@/lib/types";
-import { fmtL100, fmtLiters, fmtMoney, fmtOdo, num } from "@/lib/format";
+import { fmtL100, fmtLiters, fmtMoney, num } from "@/lib/format";
 import { calcStats, latestConsumption } from "@/lib/stats";
 import { Fuel } from "lucide-react";
 import { useActiveVehicle } from "@/lib/use-active-vehicle";
@@ -38,6 +38,19 @@ import { useDataVersion } from "@/lib/stores";
 import { pushToast } from "@/components/toast-host";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
+
+/** Two-line stat tile: label on top, value + unit below. */
+function StatItem({ label, value, unit, highlight }: { label: string; value: string | number; unit: string; highlight?: boolean }) {
+  return (
+    <div style={{ textAlign: "center" }}>
+      <div style={{ fontSize: 11, color: "var(--text2)", marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: highlight ? 22 : 18, fontWeight: 700, color: highlight ? "var(--accent)" : "var(--text)", lineHeight: 1.2 }}>
+        {value}
+        <span style={{ fontSize: 11, fontWeight: 500, color: "var(--text2)", marginLeft: 2 }}>{unit}</span>
+      </div>
+    </div>
+  );
+}
 const daysAgo = (n: number) => {
   const d = new Date();
   d.setDate(d.getDate() - n);
@@ -94,22 +107,22 @@ export function OverviewPage() {
   return (
     <div>
       {/* ── Latest consumption ── */}
-      <div className="card" style={{ textAlign: "center" }}>
+      <div className="card">
         <div className="card-title" style={{ justifyContent: "center" }}>
           <Fuel size={16} strokeWidth={1} /> 最近一次油耗
         </div>
         {latest ? (
-          <>
-            <div style={{ fontSize: 48, fontWeight: 800, color: "var(--accent)", lineHeight: 1.1 }}>
-              {latest.l_per_100.toFixed(2)}
-              <span style={{ fontSize: 18, fontWeight: 600, color: "var(--text2)", marginLeft: 6 }}>L/100km</span>
-            </div>
-            <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 6 }}>
-              {latest.date} · {fmtOdo(latest.odometer)}
-            </div>
-          </>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(90px, 1fr))", gap: "12px 8px", marginTop: 8 }}>
+            <StatItem label="油耗" value={latest.l_per_100.toFixed(2)} unit="L/100km" highlight />
+            <StatItem label="每公里" value={latest.costPerKm.toFixed(3)} unit="元/km" />
+            <StatItem label="行驶天数" value={String(latest.days)} unit="天" />
+            <StatItem label="行驶距离" value={Math.round(latest.distance)} unit="km" />
+            <StatItem label="日均行程" value={latest.dailyAvg.toFixed(1)} unit="km/天" />
+            <StatItem label="燃油消耗" value={latest.liters.toFixed(2)} unit="升" />
+            <StatItem label="油费支出" value={latest.totalCost.toFixed(2)} unit="元" />
+          </div>
         ) : (
-          <div style={{ fontSize: 14, color: "var(--text2)", padding: "12px 0" }}>
+          <div style={{ fontSize: 14, color: "var(--text2)", padding: "12px 0", textAlign: "center" }}>
             需要 ≥2 条满箱记录才能计算最近油耗
           </div>
         )}
