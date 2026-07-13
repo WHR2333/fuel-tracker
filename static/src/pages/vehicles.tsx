@@ -114,6 +114,9 @@ export function VehiclesPage() {
         </button>
       </div>
 
+      {/* ── Account ── */}
+      <AccountCard />
+
       <div className="card">
         <div className="card-title">{cardTitle("wrench", "数据管理")}</div>
         <div className="btn-row">
@@ -136,9 +139,6 @@ export function VehiclesPage() {
           <button className="btn btn-danger" style={{ width: "100%" }} onClick={clearAll}>清空所有数据</button>
         </div>
       </div>
-
-      {/* ── Account ── */}
-      <AccountCard />
 
       <VehicleSheet
         open={adding || !!editing}
