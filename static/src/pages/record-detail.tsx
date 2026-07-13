@@ -149,8 +149,8 @@ export function RecordDetailPage() {
 
   // ---------- render ----------
 
-  const pumpVal = form.pumpAmount;
-  const paidVal = form.paidAmount;
+  const pumpVal = Number(form.pumpAmount) || 0;
+  const paidVal = Number(form.paidAmount) || 0;
 
   return (
     <div>
@@ -208,9 +208,9 @@ export function RecordDetailPage() {
               <div>
                 <input
                   className="form-input" type="number" step="0.01"
-                  value={displayVal("pumpAmount", form.pumpAmount)}
+                  value={displayVal("pumpAmount", Number(form.pumpAmount) || 0)}
                   placeholder="机显金额 ¥"
-                  onFocus={() => handleFocus("pumpAmount", form.pumpAmount)}
+                  onFocus={() => handleFocus("pumpAmount", Number(form.pumpAmount) || 0)}
                   onChange={(e) => setEditing((ed) => ({ ...ed, pumpAmount: e.target.value }))}
                   onBlur={(e) => handlePriceBlur("pumpAmount", e.target.value)}
                 />
@@ -225,9 +225,9 @@ export function RecordDetailPage() {
               <label>实付金额 ¥</label>
               <input
                 className="form-input" type="number" step="0.01"
-                value={displayVal("paidAmount", form.paidAmount)}
+                value={displayVal("paidAmount", Number(form.paidAmount) || 0)}
                 placeholder="通常 = 机显"
-                onFocus={() => handleFocus("paidAmount", form.paidAmount)}
+                onFocus={() => handleFocus("paidAmount", Number(form.paidAmount) || 0)}
                 onChange={(e) => setEditing((ed) => ({ ...ed, paidAmount: e.target.value }))}
                 onBlur={(e) => handleSimpleBlur("paidAmount", e.target.value)}
               />
