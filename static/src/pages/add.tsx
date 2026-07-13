@@ -28,10 +28,6 @@ const pn = (s: string): number => {
   return isNaN(n) ? NaN : n;
 };
 
-/** Format number with thousand separators + 2 decimals for hint display. */
-const fmtHint = (n: number) =>
-  n.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
 const initial = (): FuelRecordCreate => ({
   recordDate: nowDatetimeLocal(),
   odometer: 0,
@@ -168,10 +164,6 @@ export function AddPage() {
   const priceAutofilled = last != null && pn(String(last.price)) > 0 && form.price === r2(pn(String(last.price)));
   const stationAutofilled = last != null && !!last.station && form.station === last.station;
 
-  // Hint for the amount field: show thousand-separated value
-  const pumpVal = Number(form.pumpAmount) || 0;
-  const paidVal = Number(form.paidAmount) || 0;
-
   return (
     <div>
       {/* Header */}
@@ -253,23 +245,16 @@ export function AddPage() {
               onBlur={(e) => handlePriceBlur("liters", e.target.value)}
               required
             />
-            <div>
-              <input
-                className="form-input"
-                type="number"
-                step="0.01"
-                value={displayVal("pumpAmount", form.pumpAmount)}
-                placeholder="机显金额 ¥"
-                onFocus={() => handleFocus("pumpAmount", form.pumpAmount)}
-                onChange={(e) => setEditing((ed) => ({ ...ed, pumpAmount: e.target.value }))}
-                onBlur={(e) => handlePriceBlur("pumpAmount", e.target.value)}
-              />
-              {pumpVal > 0 && !("pumpAmount" in editing) ? (
-                <div style={{ fontSize: 11, color: "var(--text2)", marginTop: 2, paddingLeft: 2 }}>
-                  ¥{fmtHint(pumpVal)}
-                </div>
-              ) : null}
-            </div>
+            <input
+              className="form-input"
+              type="number"
+              step="0.01"
+              value={displayVal("pumpAmount", form.pumpAmount)}
+              placeholder="机显金额 ¥"
+              onFocus={() => handleFocus("pumpAmount", form.pumpAmount)}
+              onChange={(e) => setEditing((ed) => ({ ...ed, pumpAmount: e.target.value }))}
+              onBlur={(e) => handlePriceBlur("pumpAmount", e.target.value)}
+            />
           </div>
         </div>
 
@@ -286,11 +271,6 @@ export function AddPage() {
               onChange={(e) => setEditing((ed) => ({ ...ed, paidAmount: e.target.value }))}
               onBlur={(e) => handleSimpleBlur("paidAmount", e.target.value)}
             />
-            {paidVal > 0 && !("paidAmount" in editing) ? (
-              <div style={{ fontSize: 11, color: "var(--text2)", marginTop: 2, paddingLeft: 2 }}>
-                ¥{fmtHint(paidVal)}
-              </div>
-            ) : null}
           </div>
           <div className="form-group">
             <label>加油站（选填）</label>
