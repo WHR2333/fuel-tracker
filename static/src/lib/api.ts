@@ -12,9 +12,18 @@ import type {
   VehicleCreate,
   Trigger,
 } from "./types";
+import { getApiKey } from "./runtime-config";
 
 const BASE = import.meta.env.VITE_API_BASE ?? "/api/v1";
-const KEY = import.meta.env.VITE_API_KEY ?? "";
+// KEY is resolved lazily — getApiKey() fetches /api/v1/config on first
+// call and caches the result. Falls back to the Vite-injected value
+// if the fetch fails (local dev without backend).
+let _cachedKey: string | null = null;
+const getKey = async () => {
+  if (_cachedKey !== null) return _cachedKey;
+  _cachedKey = await getApiKey();
+  return _cachedKey;
+};
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -23,11 +32,12 @@ export class ApiError extends Error {
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const key = await getKey();
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers: {
       "Content-Type": "application/json",
-      "X-API-Key": KEY,
+      "X-API-Key": key,
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });

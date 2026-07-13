@@ -1,16 +1,12 @@
 """FastAPI app factory."""
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.db import init_db
 from app.routers import admin, analytics, maintenance, records, vehicles
-
-STATIC_DIR = Path(__file__).resolve().parent.parent / "static_dist"
 
 
 @asynccontextmanager
@@ -44,10 +40,11 @@ def create_app() -> FastAPI:
     def health() -> dict:
         return {"status": "ok", "env": settings.app_env}
 
-    # Serve built frontend assets (Vite output) when the static_dist directory
-    # exists — i.e. inside the Docker image. Falls back gracefully if absent.
-    if STATIC_DIR.is_dir():
-        app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
+    @app.get("/api/v1/config", tags=["meta"])
+    def config() -> dict:
+        """Frontend calls this on startup to get runtime config (API key, etc.)
+        so the build doesn't need to bake in environment-specific values."""
+        return {"apiKey": settings.api_key}
 
     return app
 
