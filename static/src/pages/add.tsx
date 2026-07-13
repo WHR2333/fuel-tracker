@@ -100,8 +100,12 @@ export function AddPage() {
   };
 
   /**
-   * On blur: parse → round → store → auto-calc the 3rd field.
-   * Any 2 of (liters, price, pumpAmount) filled → compute the 3rd.
+   * On blur: parse → round → store → auto-calc linked field.
+   *
+   * Rules (always apply, not just when exactly 2 filled):
+   *   改单价  → 基于总价反算油量  (oil = total ÷ price)
+   *   改加油量 → 基于总价反算单价  (price = total ÷ oil)
+   *   改机显金额 → 基于当前单价反算油量 (oil = total ÷ price)
    */
   const handlePriceBlur = (key: "liters" | "price" | "pumpAmount", raw: string) => {
     const parsed = r2(pn(raw));
@@ -109,17 +113,24 @@ export function AddPage() {
 
     setForm((f) => {
       const next = { ...f, [key]: value };
-
       const l = Number(next.liters) || 0;
       const p = Number(next.price) || 0;
       const m = Number(next.pumpAmount) || 0;
-      const hasL = l > 0, hasP = p > 0, hasM = m > 0;
-      const count = (hasL ? 1 : 0) + (hasP ? 1 : 0) + (hasM ? 1 : 0);
 
-      if (count === 2) {
-        if (!hasL && hasP && hasM) next.liters = r2(m / p);
-        if (!hasP && hasL && hasM) next.price = r2(m / l);
-        if (!hasM && hasL && hasP) next.pumpAmount = r2(l * p);
+      if (key === "price" && p > 0 && m > 0) {
+        // 改单价 → 油量 = 总价 ÷ 单价
+        next.liters = r2(m / p);
+      } else if (key === "liters" && l > 0 && m > 0) {
+        // 改油量 → 单价 = 总价 ÷ 油量
+        next.price = r2(m / l);
+      } else if (key === "pumpAmount" && m > 0 && p > 0) {
+        // 改金额 → 油量 = 金额 ÷ 单价
+        next.liters = r2(m / p);
+      } else if (l > 0 && p > 0) {
+        // 两个有值，第三个缺失 → 补全
+        if (!m) next.pumpAmount = r2(l * p);
+        else if (!p) next.price = r2(m / l);
+        else if (!l) next.liters = r2(m / p);
       }
 
       return next;

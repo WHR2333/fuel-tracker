@@ -95,13 +95,19 @@ export function RecordDetailPage() {
       const l = Number(next.liters) || 0;
       const p = Number(next.price) || 0;
       const m = Number(next.pumpAmount) || 0;
-      const hasL = l > 0, hasP = p > 0, hasM = m > 0;
-      const count = (hasL ? 1 : 0) + (hasP ? 1 : 0) + (hasM ? 1 : 0);
-      if (count === 2) {
-        if (!hasL && hasP && hasM) next.liters = r2(m / p);
-        if (!hasP && hasL && hasM) next.price = r2(m / l);
-        if (!hasM && hasL && hasP) next.pumpAmount = r2(l * p);
+
+      if (key === "price" && p > 0 && m > 0) {
+        next.liters = r2(m / p);
+      } else if (key === "liters" && l > 0 && m > 0) {
+        next.price = r2(m / l);
+      } else if (key === "pumpAmount" && m > 0 && p > 0) {
+        next.liters = r2(m / p);
+      } else if (l > 0 && p > 0) {
+        if (!m) next.pumpAmount = r2(l * p);
+        else if (!p) next.price = r2(m / l);
+        else if (!l) next.liters = r2(m / p);
       }
+
       return next;
     });
     setEditing((e) => { const n = { ...e }; delete n[key]; return n; });
