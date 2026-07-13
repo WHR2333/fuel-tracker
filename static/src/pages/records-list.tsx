@@ -157,7 +157,7 @@ export function RecordsListPage() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
           <YearPicker year={year} onChange={setYear} records={records} />
           <div style={{ display: "flex", gap: 12, fontSize: 14, fontWeight: 600 }}>
-            <span>{Math.round(num(totalCost))}元</span>
+            <span>{num(totalCost).toFixed(2)}元</span>
             <span style={{ color: "var(--text2)" }}>·</span>
             <span>{Math.round(num(distance))}公里</span>
             <span style={{ color: "var(--text2)" }}>·</span>
@@ -245,7 +245,7 @@ function RecordCard({ record, con, status, collapsed: globalCollapsed, onNavigat
   const dateLabel = year === CURRENT_YEAR ? date.slice(5) : date;
   const conText = con != null ? `${con.toFixed(2)}升/百公里` : null;
   const odo = Math.round(num(record.odometer));
-  const cost = Math.round(num(record.paidAmount ?? record.totalCost));
+  const cost = num(record.paidAmount ?? record.totalCost).toFixed(2);
   const price = num(record.price).toFixed(2);
   const liters = `+${num(record.liters).toFixed(2)}升`;
   const fullTank = record.fullTank === "yes";
