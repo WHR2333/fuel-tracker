@@ -48,6 +48,17 @@ def init_db() -> None:
             ))
             sess.commit()
 
+    # --- migrate: add skipped_previous column to fuel_records if missing ---
+    with Session(engine) as sess:
+        try:
+            sess.execute(text("SELECT skipped_previous FROM fuel_records LIMIT 1"))  # noqa: S608
+        except (ProgrammingError, OperationalError):
+            logger.info("Adding skipped_previous column to fuel_records table")
+            sess.execute(text(  # noqa: S608
+                "ALTER TABLE fuel_records ADD COLUMN skipped_previous BOOL NOT NULL DEFAULT 0"
+            ))
+            sess.commit()
+
     # --- seed admin user if users table is empty ---
     with Session(engine) as sess:
         existing = sess.execute(select(user.User)).scalars().first()

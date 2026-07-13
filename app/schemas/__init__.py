@@ -48,6 +48,7 @@ class FuelRecordBase(BaseModel):
     fuel_type: str = Field(default="92", max_length=8)
     note: str = Field(default="", max_length=2000)
     light: bool = False
+    skipped_previous: bool = False
 
 
 class FuelRecordCreate(FuelRecordBase):

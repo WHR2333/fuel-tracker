@@ -62,14 +62,20 @@ export interface CostPrediction {
  * consumption are computed against that previous full tank — any
  * intermediate non-full records are skipped for distance purposes.
  *
+ * skippedPrevious: if true, there were unrecorded fill-ups before this
+ * one — so this record cannot be the endpoint of a consumption segment.
+ * It CAN serve as the baseline for the NEXT segment.
+ *
  * Returns null if:
  *   - current record is not full tank
+ *   - current record has skippedPrevious set (unknown baseline)
  *   - no previous full tank exists
  *   - distance ≤ 0 or consumption is out of range
  */
 const validCon = (sorted: FuelRecord[], i: number): number | null => {
   const r = sorted[i];
   if (r.fullTank !== "yes") return null;
+  if (r.skippedPrevious) return null;
   // Scan backwards for the previous full tank record (跳枪).
   for (let j = i - 1; j >= 0; j--) {
     if (sorted[j].fullTank === "yes") {
@@ -592,6 +598,7 @@ export const calcFuelTypeStats = (records: FuelRecord[]): FuelTypeStat[] => {
     const consumptions: number[] = [];
     for (let i = 1; i < sorted.length; i++) {
       if (sorted[i].fullTank !== "yes") continue;
+      if (sorted[i].skippedPrevious) continue;
       for (let j = i - 1; j >= 0; j--) {
         if (sorted[j].fullTank === "yes") {
           const dist = num(sorted[i].odometer) - num(sorted[j].odometer);

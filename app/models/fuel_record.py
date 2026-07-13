@@ -41,6 +41,10 @@ class FuelRecord(SQLModel, table=True):
     # True when the user filled up while the fuel-gauge low-fuel light was on —
     # surfaced in the UI as the 💡 icon on the record card.
     light: bool = Field(default=False)
+    # True when there were unrecorded fill-ups before this one. Prevents
+    # consumption calculation from using the previous recorded fill-up as
+    # baseline — this record becomes a new segment start.
+    skipped_previous: bool = Field(default=False)
     created_at: Optional[datetime] = Field(
         default=None,
         sa_column=Column(DateTime, server_default=func.now()),

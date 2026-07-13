@@ -98,6 +98,7 @@ function recordFromApi(r: any): FuelRecord {
     fuelType: r.fuel_type,
     note: r.note,
     light: r.light === true || r.light === 1 || r.light === "1",
+    skippedPrevious: r.skipped_previous === true || r.skipped_previous === 1 || r.skipped_previous === "1",
     createdAt: r.created_at,
   };
 }
@@ -115,6 +116,7 @@ function recordToApi(r: FuelRecordCreate): any {
     fuel_type: r.fuelType,
     note: r.note,
     light: r.light === true,
+    skipped_previous: r.skippedPrevious === true,
   };
 }
 
@@ -239,6 +241,7 @@ export const admin = {
         fuel_type: r.fuelType,
         note: r.note,
         light: r.light === true,
+        skipped_previous: r.skippedPrevious === true,
       })),
       maint: payload.maint.map((m) => ({
         id: m.id,

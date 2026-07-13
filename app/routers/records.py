@@ -26,6 +26,7 @@ def _apply(payload: FuelRecordCreate, r: FuelRecord) -> None:
     r.fuel_type = payload.fuel_type
     r.note = payload.note
     r.light = payload.light
+    r.skipped_previous = payload.skipped_previous
 
 
 @router.get("/api/v1/vehicles/{vid}/records", response_model=list[FuelRecordRead])

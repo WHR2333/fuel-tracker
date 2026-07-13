@@ -13,7 +13,7 @@ import type { FuelRecord, FuelRecordCreate, FullTank, Vehicle } from "@/lib/type
 import { fuelLabel, nowDatetimeLocal } from "@/lib/format";
 import { pushToast } from "@/components/toast-host";
 import { notifyDataChanged } from "@/lib/stores";
-import { Lightbulb } from "lucide-react";
+import { Lightbulb, SkipForward } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { vehicles as vApi } from "@/lib/api";
 
@@ -40,6 +40,7 @@ const initial = (): FuelRecordCreate => ({
   fuelType: "92",
   note: "",
   light: false,
+  skippedPrevious: false,
 });
 
 export function AddPage() {
@@ -306,6 +307,17 @@ export function AddPage() {
                 style={{ width: 18, height: 18 }}
               />
               <Lightbulb size={16} strokeWidth={1} /> 油量表灯亮
+            </label>
+          </div>
+          <div className="form-group">
+            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={form.skippedPrevious === true}
+                onChange={(e) => setForm((f) => ({ ...f, skippedPrevious: e.target.checked }))}
+                style={{ width: 18, height: 18 }}
+              />
+              <SkipForward size={16} strokeWidth={1} /> 上次加油没有记录
             </label>
           </div>
         </div>

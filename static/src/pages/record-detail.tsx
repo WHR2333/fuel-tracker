@@ -12,7 +12,7 @@ import type { FuelRecord, FuelRecordCreate, FullTank } from "@/lib/types";
 import { fuelLabel, num } from "@/lib/format";
 import { useActiveVehicle } from "@/lib/use-active-vehicle";
 import { pushToast } from "@/components/toast-host";
-import { Lightbulb } from "lucide-react";
+import { Lightbulb, SkipForward } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { notifyDataChanged } from "@/lib/stores";
 
@@ -52,6 +52,7 @@ export function RecordDetailPage() {
           fuelType: found.fuelType,
           note: found.note,
           light: found.light === true,
+          skippedPrevious: found.skippedPrevious === true,
         });
       }
       setFetching(false);
@@ -248,6 +249,12 @@ export function RecordDetailPage() {
             <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <input type="checkbox" checked={form.light === true} onChange={(e) => update("light", e.target.checked)} style={{ width: 18, height: 18 }} />
               <Lightbulb size={16} strokeWidth={1} /> 油量表灯亮
+            </label>
+          </div>
+          <div className="form-group">
+            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input type="checkbox" checked={form.skippedPrevious === true} onChange={(e) => update("skippedPrevious", e.target.checked)} style={{ width: 18, height: 18 }} />
+              <SkipForward size={16} strokeWidth={1} /> 上次加油没有记录
             </label>
           </div>
           <div className="form-group">

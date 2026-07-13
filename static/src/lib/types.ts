@@ -42,6 +42,8 @@ export interface FuelRecord {
   note: string;
   /** True if the user noted the fuel-gauge low-fuel light was on at fill-up. */
   light: boolean;
+  /** True when there were unrecorded fill-ups before this one. */
+  skippedPrevious: boolean;
   createdAt?: string;
 }
 
