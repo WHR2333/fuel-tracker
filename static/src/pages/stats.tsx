@@ -9,6 +9,10 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   Tooltip,
@@ -35,15 +39,20 @@ import {
   calcStationStats,
   calcStats,
   calcYearly,
+  calcOverview,
+  calcFuelTypeStats,
 } from "@/lib/stats";
 import { useActiveVehicle } from "@/lib/use-active-vehicle";
 
-type Tab = "monthly" | "yearly" | "station" | "behavior" | "compare";
+type Tab = "overview" | "monthly" | "yearly" | "fuelType" | "station" | "trend" | "behavior" | "compare";
 const TABS: { value: Tab; label: string; icon: string }[] = [
+  { value: "overview", label: "总览", icon: "trend-up" },
   { value: "monthly", label: "月度", icon: "calendar" },
   { value: "yearly", label: "年度", icon: "calendar-days" },
+  { value: "fuelType", label: "油品", icon: "fuel" },
   { value: "station", label: "加油站", icon: "store" },
-  { value: "behavior", label: "行为分析", icon: "brain" },
+  { value: "trend", label: "趋势", icon: "chart-line" },
+  { value: "behavior", label: "行为", icon: "brain" },
   { value: "compare", label: "对比", icon: "refresh" },
 ];
 
@@ -57,7 +66,7 @@ interface RangeState {
 export function StatsPage() {
   const { vehicle, loading } = useActiveVehicle();
   const navigate = useNavigate();
-  const [tab, setTab] = React.useState<Tab>("monthly");
+  const [tab, setTab] = React.useState<Tab>("overview");
   const [records, setRecords] = React.useState<FuelRecord[]>([]);
   const [dataLoading, setDataLoading] = React.useState(true);
   const presets = React.useMemo(() => dateRangePresets(), []);
@@ -156,14 +165,167 @@ export function StatsPage() {
         <EmptyState text="加载中…" />
       ) : (
         <>
+          {tab === "overview" ? <OverviewTab records={filtered} /> : null}
           {tab === "monthly" ? <MonthlyTab records={filtered} /> : null}
           {tab === "yearly" ? <YearlyTab records={filtered} /> : null}
+          {tab === "fuelType" ? <FuelTypeTab records={filtered} /> : null}
           {tab === "station" ? <StationTab records={filtered} /> : null}
+          {tab === "trend" ? <TrendTab records={filtered} /> : null}
           {tab === "behavior" ? <BehaviorTab records={filtered} /> : null}
           {tab === "compare" ? <CompareTab records={filtered} vehicle={vehicle.model} /> : null}
         </>
       )}
     </div>
+  );
+}
+
+function OverviewTab({ records }: { records: FuelRecord[] }) {
+  const ov = calcOverview(records);
+  if (!ov) return <EmptyState text="该时间范围内没有数据" />;
+
+  const items = [
+    { label: "记录总数", value: String(ov.totalRecords), unit: "条" },
+    { label: "满箱次数", value: String(ov.fullCount), unit: "次" },
+    { label: "加满率", value: ov.fullRate.toFixed(0), unit: "%" },
+    { label: "总花费", value: ov.totalCost.toFixed(2), unit: "元" },
+    { label: "总加油量", value: ov.totalFuel.toFixed(2), unit: "升" },
+    { label: "总里程", value: Math.round(ov.totalDist), unit: "km" },
+    { label: "平均油耗", value: ov.avgConsumption > 0 ? ov.avgConsumption.toFixed(2) : "—", unit: "L/100km", highlight: true },
+    { label: "平均单价", value: ov.avgPrice.toFixed(2), unit: "¥/L" },
+    { label: "每公里费用", value: ov.costPerKm > 0 ? ov.costPerKm.toFixed(3) : "—", unit: "元/km" },
+    { label: "最低油耗", value: ov.bestCon > 0 ? ov.bestCon.toFixed(2) : "—", unit: "L/100km" },
+    { label: "最高油耗", value: ov.worstCon > 0 ? ov.worstCon.toFixed(2) : "—", unit: "L/100km" },
+    { label: "最低单价", value: ov.cheapestPrice > 0 ? ov.cheapestPrice.toFixed(2) : "—", unit: "¥/L" },
+    { label: "最高单价", value: ov.mostExpensivePrice > 0 ? ov.mostExpensivePrice.toFixed(2) : "—", unit: "¥/L" },
+    { label: "首次加油", value: ov.firstDate, unit: "" },
+    { label: "最近加油", value: ov.lastDate, unit: "" },
+    { label: "记录跨度", value: String(ov.spanDays), unit: "天" },
+  ];
+
+  return (
+    <div className="card">
+      <div className="card-title">{cardTitle("trend-up", "总览")}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: "14px 8px" }}>
+        {items.map((it) => (
+          <div key={it.label} style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 11, color: "var(--text2)", marginBottom: 2 }}>{it.label}</div>
+            <div style={{ fontSize: it.highlight ? 20 : 16, fontWeight: 700, color: it.highlight ? "var(--accent)" : "var(--text)", lineHeight: 1.2 }}>
+              {it.value}
+              {it.unit ? <span style={{ fontSize: 11, fontWeight: 500, color: "var(--text2)", marginLeft: 2 }}>{it.unit}</span> : null}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FuelTypeTab({ records }: { records: FuelRecord[] }) {
+  const data = calcFuelTypeStats(records);
+  if (data.length === 0) return <EmptyState text="该时间范围内没有数据" />;
+
+  const chartData = data
+    .filter((d) => d.avgConsumption > 0)
+    .map((d) => ({ type: d.fuelType, con: Number(d.avgConsumption.toFixed(2)) }));
+
+  return (
+    <>
+      <div className="card">
+        <div className="card-title">{cardTitle("fuel", "油品统计")}</div>
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>油品</th><th>次数</th><th>总花费</th><th>总加油量</th><th>平均单价</th><th>平均油耗</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((d) => (
+              <tr key={d.fuelType}>
+                <td>{d.fuelType}</td>
+                <td>{d.count}</td>
+                <td>{fmtMoney(d.totalCost)}</td>
+                <td>{fmtLiters(d.totalFuel)}</td>
+                <td>¥{d.avgPrice.toFixed(2)}/L</td>
+                <td>{d.avgConsumption > 0 ? `${d.avgConsumption.toFixed(2)} L` : "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {chartData.length > 0 ? (
+        <div className="card">
+          <div className="card-title">{cardTitle("fuel", "各油品平均油耗")}</div>
+          <div style={{ height: 220 }}>
+            <ResponsiveContainer>
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+                <XAxis dataKey="type" tick={{ fontSize: 12, fill: "var(--chart-label)" }} />
+                <YAxis tick={{ fontSize: 11, fill: "var(--chart-label)" }} />
+                <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
+                <Bar dataKey="con" fill="var(--accent)" radius={[4, 4, 0, 0]} name="L/100km" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function TrendTab({ records }: { records: FuelRecord[] }) {
+  const monthly = calcMonthly(records);
+  const stats = calcStats(records);
+
+  // Per-trip consumption scatter data (full-full pairs only).
+  const tripData = (stats?.consumptions ?? []).map((c) => ({
+    date: c.date.slice(0, 7),
+    con: Number(c.l_per_100.toFixed(2)),
+  }));
+
+  const costData = monthly.map((m) => ({
+    month: m.month.slice(2),
+    cost: Number(m.totalCost.toFixed(2)),
+  }));
+
+  if (tripData.length === 0 && costData.length === 0) {
+    return <EmptyState text="该时间范围内没有数据" />;
+  }
+
+  return (
+    <>
+      {tripData.length > 0 ? (
+        <div className="card">
+          <div className="card-title">{cardTitle("chart-line", "单次油耗趋势")}</div>
+          <div style={{ height: 260 }}>
+            <ResponsiveContainer>
+              <LineChart data={tripData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+                <XAxis dataKey="date" tick={{ fontSize: 11, fill: "var(--chart-label)" }} />
+                <YAxis tick={{ fontSize: 11, fill: "var(--chart-label)" }} />
+                <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
+                <Line type="monotone" dataKey="con" stroke="var(--accent)" strokeWidth={2} dot={{ r: 3 }} name="L/100km" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      ) : null}
+      {costData.length > 0 ? (
+        <div className="card">
+          <div className="card-title">{cardTitle("chart-line", "月度费用趋势")}</div>
+          <div style={{ height: 260 }}>
+            <ResponsiveContainer>
+              <AreaChart data={costData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--chart-label)" }} />
+                <YAxis tick={{ fontSize: 11, fill: "var(--chart-label)" }} />
+                <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
+                <Area type="monotone" dataKey="cost" stroke="var(--accent2)" fill="var(--accent2)" fillOpacity={0.15} name="元" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 

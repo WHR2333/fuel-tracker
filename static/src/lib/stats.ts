@@ -503,3 +503,116 @@ export const calcBehavior = (
 
   return { avgGapDays, fullRate, stdDev: sd, cv, score, tip };
 };
+
+// --- overview summary ---
+
+export interface OverviewSummary {
+  totalRecords: number;
+  fullCount: number;
+  fullRate: number;
+  totalCost: number;
+  totalFuel: number;
+  totalDist: number;
+  avgConsumption: number;
+  avgPrice: number;
+  costPerKm: number;
+  bestCon: number;
+  worstCon: number;
+  cheapestPrice: number;
+  mostExpensivePrice: number;
+  firstDate: string;
+  lastDate: string;
+  spanDays: number;
+}
+
+export const calcOverview = (records: FuelRecord[]): OverviewSummary | null => {
+  if (records.length === 0) return null;
+  const stats = calcStats(records);
+  if (!stats) return null;
+
+  const sorted = [...records].sort((a, b) => num(a.odometer) - num(b.odometer));
+  const fullRecords = records.filter((r) => r.fullTank === "yes");
+  const prices = records.map((r) => num(r.price)).filter((p) => p > 0);
+
+  const byDate = [...records].sort(
+    (a, b) => new Date(a.recordDate).getTime() - new Date(b.recordDate).getTime(),
+  );
+  const firstDate = byDate[0].recordDate.slice(0, 10);
+  const lastDate = byDate[byDate.length - 1].recordDate.slice(0, 10);
+  const spanDays = Math.max(1, Math.round(
+    (new Date(lastDate).getTime() - new Date(firstDate).getTime()) / 86400000,
+  ) + 1);
+
+  return {
+    totalRecords: records.length,
+    fullCount: fullRecords.length,
+    fullRate: (fullRecords.length / records.length) * 100,
+    totalCost: stats.totalCost,
+    totalFuel: stats.totalFuel,
+    totalDist: stats.totalDist,
+    avgConsumption: stats.avgConsumption,
+    avgPrice: stats.avgPrice,
+    costPerKm: stats.costPerKm,
+    bestCon: stats.best,
+    worstCon: stats.worst,
+    cheapestPrice: prices.length ? Math.min(...prices) : 0,
+    mostExpensivePrice: prices.length ? Math.max(...prices) : 0,
+    firstDate,
+    lastDate,
+    spanDays,
+  };
+};
+
+// --- fuel type stats ---
+
+export interface FuelTypeStat {
+  fuelType: string;
+  count: number;
+  totalCost: number;
+  totalFuel: number;
+  avgPrice: number;
+  avgConsumption: number;
+}
+
+export const calcFuelTypeStats = (records: FuelRecord[]): FuelTypeStat[] => {
+  const groups = new Map<string, FuelRecord[]>();
+  for (const r of records) {
+    const key = r.fuelType || "未知";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(r);
+  }
+
+  const result: FuelTypeStat[] = [];
+  for (const [fuelType, recs] of groups) {
+    const totalFuel = recs.reduce((s, r) => s + num(r.liters), 0);
+    const totalCost = recs.reduce((s, r) => s + num(r.totalCost), 0);
+
+    // Calculate avg consumption for this fuel type using full tank method.
+    const sorted = [...recs].sort((a, b) => num(a.odometer) - num(b.odometer));
+    const consumptions: number[] = [];
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i].fullTank !== "yes") continue;
+      for (let j = i - 1; j >= 0; j--) {
+        if (sorted[j].fullTank === "yes") {
+          const dist = num(sorted[i].odometer) - num(sorted[j].odometer);
+          if (dist > 0) consumptions.push((num(sorted[i].liters) / dist) * 100);
+          break;
+        }
+      }
+    }
+    const avgConsumption = consumptions.length
+      ? consumptions.reduce((a, b) => a + b, 0) / consumptions.length
+      : 0;
+
+    result.push({
+      fuelType,
+      count: recs.length,
+      totalCost,
+      totalFuel,
+      avgPrice: totalFuel > 0 ? totalCost / totalFuel : 0,
+      avgConsumption,
+    });
+  }
+
+  return result.sort((a, b) => b.count - a.count);
+};
