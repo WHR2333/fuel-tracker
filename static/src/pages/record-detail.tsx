@@ -79,11 +79,12 @@ export function RecordDetailPage() {
 
   // ---------- helpers ----------
 
-  const displayVal = (key: string, val: number) =>
-    key in editing ? editing[key] : (val || "");
+  const displayVal = (key: string, val: number | string | null) =>
+    key in editing ? editing[key] : (Number(val) || "");
 
-  const handleFocus = (key: string, val: number) => {
-    setEditing((e) => ({ ...e, [key]: val ? String(val) : "" }));
+  const handleFocus = (key: string, val: number | string | null) => {
+    const n = Number(val) || 0;
+    setEditing((e) => ({ ...e, [key]: n ? String(n) : "" }));
   };
 
   const handlePriceBlur = (key: "liters" | "price" | "pumpAmount", raw: string) => {

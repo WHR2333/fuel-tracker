@@ -94,12 +94,13 @@ export function AddPage() {
   // ---------- helpers ----------
 
   /** Return display value for a price input. */
-  const displayVal = (key: string, val: number) =>
-    key in editing ? editing[key] : (val || "");
+  const displayVal = (key: string, val: number | string | null) =>
+    key in editing ? editing[key] : (Number(val) || "");
 
   /** On focus: capture raw string for editing. */
-  const handleFocus = (key: string, val: number) => {
-    setEditing((e) => ({ ...e, [key]: val ? String(val) : "" }));
+  const handleFocus = (key: string, val: number | string | null) => {
+    const n = Number(val) || 0;
+    setEditing((e) => ({ ...e, [key]: n ? String(n) : "" }));
   };
 
   /**
@@ -168,8 +169,8 @@ export function AddPage() {
   const stationAutofilled = last != null && !!last.station && form.station === last.station;
 
   // Hint for the amount field: show thousand-separated value
-  const pumpVal = form.pumpAmount;
-  const paidVal = form.paidAmount;
+  const pumpVal = Number(form.pumpAmount) || 0;
+  const paidVal = Number(form.paidAmount) || 0;
 
   return (
     <div>
