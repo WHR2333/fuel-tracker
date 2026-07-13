@@ -32,7 +32,7 @@ FullTankType = Literal["yes", "no"]
 
 
 class FuelRecordBase(BaseModel):
-    record_date: date
+    record_date: datetime
     odometer: Decimal = Field(ge=0)
     liters: Decimal = Field(gt=0)
     price: Decimal = Field(gt=0)
@@ -73,7 +73,7 @@ TriggerType = Literal["date", "odo", "either", "none"]
 
 
 class MaintenanceBase(BaseModel):
-    record_date: date
+    record_date: datetime
     odometer: Decimal = Field(default=Decimal("0"), ge=0)
     maint_type: str = Field(default="", max_length=64)
     # User-supplied name; empty means use the preset's default name.

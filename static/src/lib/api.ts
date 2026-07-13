@@ -105,7 +105,7 @@ function recordFromApi(r: any): FuelRecord {
 
 function recordToApi(r: FuelRecordCreate): any {
   return {
-    record_date: r.recordDate?.slice(0, 10) ?? r.recordDate,
+    record_date: r.recordDate,
     odometer: typeof r.odometer === "string" ? parseFloat(r.odometer) || 0 : r.odometer,
     liters: typeof r.liters === "string" ? parseFloat(r.liters) || 0 : r.liters,
     price: typeof r.price === "string" ? parseFloat(r.price) || 0 : r.price,

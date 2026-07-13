@@ -6,7 +6,7 @@
 * `paid_amount` is what actually came out of the user's wallet (after any
   discount or rounding). When null, the UI assumes paid_amount = pump_amount.
 """
-from datetime import date, datetime
+from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 
@@ -27,7 +27,7 @@ class FuelRecord(SQLModel, table=True):
             index=True,
         ),
     )
-    record_date: date = Field(index=True)
+    record_date: datetime = Field(index=True)
     odometer: Decimal = Field(max_digits=10, decimal_places=2)
     liters: Decimal = Field(max_digits=8, decimal_places=3)
     price: Decimal = Field(max_digits=6, decimal_places=3)

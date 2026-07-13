@@ -59,6 +59,17 @@ def init_db() -> None:
             ))
             sess.commit()
 
+    # --- migrate: record_date from DATE to DATETIME (preserve existing times) ---
+    with Session(engine) as sess:
+        try:
+            # If already DATETIME this is a no-op; if DATE it upgrades the column.
+            sess.execute(text(  # noqa: S608
+                "ALTER TABLE fuel_records MODIFY COLUMN record_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"
+            ))
+            sess.commit()
+        except (ProgrammingError, OperationalError):
+            pass  # already migrated or column type unsupported
+
     # --- seed admin user if users table is empty ---
     with Session(engine) as sess:
         existing = sess.execute(select(user.User)).scalars().first()
