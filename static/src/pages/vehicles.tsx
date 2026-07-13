@@ -38,9 +38,7 @@ export function VehiclesPage() {
 
   const clearAll = async () => {
     try {
-      for (const v of list) {
-        await api.remove(v.id);
-      }
+      await api.removeAll();
       pushToast("已清空");
       await reload();
       await refresh();
@@ -163,7 +161,6 @@ function ClearDataButton({ onClear }: { onClear: () => void }) {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const wrapperRef = React.useRef<HTMLDivElement>(null);
-  const username = getUsername() ?? "";
 
   // Close on outside click.
   React.useEffect(() => {
@@ -181,20 +178,11 @@ function ClearDataButton({ onClear }: { onClear: () => void }) {
     if (!password) return;
     setLoading(true); setError(null);
     try {
-      // Verify password by attempting login.
-      const res = await fetch(`${import.meta.env.VITE_API_BASE ?? "/api/v1"}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
-      if (!res.ok) {
-        setError("密码错误");
-        return;
-      }
+      await usersApi.verifyPassword(password);
       setOpen(false); setPassword("");
       onClear();
     } catch {
-      setError("验证失败，请重试");
+      setError("密码错误");
     } finally {
       setLoading(false);
     }

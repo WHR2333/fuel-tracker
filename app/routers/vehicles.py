@@ -90,3 +90,17 @@ def delete_vehicle(
 ) -> None:
     v = get_user_vehicle(vid, current.id, session)
     session.delete(v)
+
+
+@router.delete("", status_code=200)
+def delete_all_vehicles(
+    current: CurrentUser = Depends(verify_token),
+    session: Session = Depends(get_session),
+) -> dict:
+    """Delete ALL vehicles (and cascaded records) for the current user."""
+    rows = session.execute(
+        select(Vehicle).where(Vehicle.user_id == current.id)
+    ).scalars().all()
+    for v in rows:
+        session.delete(v)
+    return {"deleted": len(rows)}

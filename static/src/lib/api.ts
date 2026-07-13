@@ -160,6 +160,7 @@ export const vehicles = {
   update: async (id: string, v: VehicleCreate) =>
     vehicleFromApi(await request<any>("PUT", `/vehicles/${id}`, vehicleToApi({ ...v, id }))),
   remove: async (id: string) => request<void>("DELETE", `/vehicles/${id}`),
+  removeAll: async () => request<{ deleted: number }>("DELETE", "/vehicles"),
 };
 
 // --- Fuel records ---
@@ -270,6 +271,8 @@ export const users = {
     request<{ detail: string }>(`PUT`, `/users/${uid}/password`, { new_password: newPassword }),
   changeMyPassword: async (oldPassword: string, newPassword: string) =>
     request<{ detail: string }>("PUT", "/auth/password", { old_password: oldPassword, new_password: newPassword }),
+  verifyPassword: async (password: string) =>
+    request<{ detail: string }>("POST", "/auth/verify-password", { password }),
 };
 
 // --- Health ---

@@ -8,7 +8,6 @@ from __future__ import annotations
 import datetime as _dt
 import time
 from dataclasses import dataclass, field
-from typing import Optional
 
 import bcrypt
 import jwt
@@ -176,3 +175,20 @@ async def change_own_password(
     user.password_hash = bcrypt.hashpw(body.new_password.encode(), bcrypt.gensalt()).decode()
     session.add(user)
     return {"detail": "Password changed"}
+
+
+class VerifyPasswordRequest(BaseModel):
+    password: str
+
+
+@router.post("/verify-password")
+async def verify_password(
+    body: VerifyPasswordRequest,
+    current: CurrentUser = Depends(verify_token),
+    session: Session = Depends(get_session),
+) -> dict:
+    """Lightweight check — returns 200 if password is correct, 400 otherwise."""
+    user = session.get(User, current.id)
+    if not user or not bcrypt.checkpw(body.password.encode(), user.password_hash.encode()):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect password")
+    return {"detail": "ok"}

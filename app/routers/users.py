@@ -41,7 +41,7 @@ def list_users(
     _admin: CurrentUser = Depends(require_admin),
     session: Session = Depends(get_session),
 ) -> list[User]:
-    return list(session.exec(select(User).order_by(User.is_admin.desc(), User.created_at)).all())
+    return list(session.execute(select(User).order_by(User.is_admin.desc(), User.created_at)).scalars().all())
 
 
 @router.post("", response_model=UserRead, status_code=201)
@@ -50,7 +50,7 @@ def create_user(
     _admin: CurrentUser = Depends(require_admin),
     session: Session = Depends(get_session),
 ) -> User:
-    if session.exec(select(User).where(User.username == body.username)).first():
+    if session.execute(select(User).where(User.username == body.username)).scalars().first():
         raise HTTPException(status_code=409, detail="Username already exists")
     user = User(
         id=gen_id("u"),
@@ -75,7 +75,7 @@ def update_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if body.username is not None:
-        existing = session.exec(select(User).where(User.username == body.username, User.id != uid)).first()
+        existing = session.execute(select(User).where(User.username == body.username, User.id != uid)).scalars().first()
         if existing:
             raise HTTPException(status_code=409, detail="Username already exists")
         user.username = body.username

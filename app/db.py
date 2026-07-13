@@ -5,6 +5,7 @@ from collections.abc import Iterator
 import bcrypt
 from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
+from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from app.config import settings
@@ -39,7 +40,7 @@ def init_db() -> None:
     with Session(engine) as sess:
         try:
             sess.execute(text("SELECT user_id FROM vehicles LIMIT 1"))  # noqa: S608
-        except Exception:
+        except (ProgrammingError, OperationalError):
             logger.info("Adding user_id column to vehicles table")
             sess.execute(text("ALTER TABLE vehicles ADD COLUMN user_id VARCHAR(32) NULL"))  # noqa: S608
             sess.execute(text(  # noqa: S608
@@ -49,7 +50,7 @@ def init_db() -> None:
 
     # --- seed admin user if users table is empty ---
     with Session(engine) as sess:
-        existing = sess.exec(select(user.User)).first()
+        existing = sess.execute(select(user.User)).scalars().first()
         if existing is None:
             pw_hash = bcrypt.hashpw(
                 settings.admin_password.encode(), bcrypt.gensalt()
@@ -65,9 +66,9 @@ def init_db() -> None:
             logger.info("Created admin user: %s", settings.admin_user)
 
         # Migrate: assign orphan vehicles (no user_id) to admin.
-        admin_user = sess.exec(
+        admin_user = sess.execute(
             select(user.User).where(user.User.is_admin == True)  # noqa: E712
-        ).first()
+        ).scalars().first()
         if admin_user:
             sess.execute(text(  # noqa: S608
                 "UPDATE vehicles SET user_id = :uid WHERE user_id IS NULL"
