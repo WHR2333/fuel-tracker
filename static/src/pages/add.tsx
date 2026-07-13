@@ -113,14 +113,16 @@ export function AddPage() {
     setForm((f) => {
       const next = { ...f, [key]: value };
 
-      const l = next.liters, p = next.price, m = next.pumpAmount;
+      const l = Number(next.liters) || 0;
+      const p = Number(next.price) || 0;
+      const m = Number(next.pumpAmount) || 0;
       const hasL = l > 0, hasP = p > 0, hasM = m > 0;
       const count = (hasL ? 1 : 0) + (hasP ? 1 : 0) + (hasM ? 1 : 0);
 
       if (count === 2) {
-        if (!hasL && hasP && hasM) next.liters = r2(m / p);       // 机显 ÷ 单价 = 油量
-        if (!hasP && hasL && hasM) next.price = r2(m / l);         // 机显 ÷ 油量 = 单价
-        if (!hasM && hasL && hasP) next.pumpAmount = r2(l * p);    // 油量 × 单价 = 机显
+        if (!hasL && hasP && hasM) next.liters = r2(m / p);
+        if (!hasP && hasL && hasM) next.price = r2(m / l);
+        if (!hasM && hasL && hasP) next.pumpAmount = r2(l * p);
       }
 
       return next;

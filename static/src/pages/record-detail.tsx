@@ -92,7 +92,9 @@ export function RecordDetailPage() {
     setForm((f) => {
       if (!f) return f;
       const next = { ...f, [key]: value };
-      const l = next.liters, p = next.price, m = next.pumpAmount;
+      const l = Number(next.liters) || 0;
+      const p = Number(next.price) || 0;
+      const m = Number(next.pumpAmount) || 0;
       const hasL = l > 0, hasP = p > 0, hasM = m > 0;
       const count = (hasL ? 1 : 0) + (hasP ? 1 : 0) + (hasM ? 1 : 0);
       if (count === 2) {
