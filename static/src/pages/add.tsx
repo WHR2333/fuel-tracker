@@ -1,26 +1,36 @@
-// Add fuel record page — four-way linked calculation between 加油量 / 单价 /
-// 机显金额 / 实付金额.
+// Add fuel record page.
 //
-// Layout changes per v2 spec:
-//   - Header: back button + title + save button (no bottom save button)
-//   - Vehicle selector: locked to the vehicle that was active when entering
-//   - 单价×加油量=机显金额 on one line, with input fields directly below
-//   - 实付金额独立一行
+// Rules:
+//   - Fill any 2 of 单价 / 加油量 / 机显金额 → auto-calculate the 3rd on blur
+//   - 金额修约: round to 0.01 元 (分)
+//   - No real-time linking — compute only on blur
+//   - 实付金额 is independent (user enters manually)
 
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { records as api } from "@/lib/api";
 import type { FuelRecord, FuelRecordCreate, FullTank, Vehicle } from "@/lib/types";
-import { fuelLabel, num, nowDatetimeLocal } from "@/lib/format";
+import { fuelLabel, nowDatetimeLocal } from "@/lib/format";
 import { pushToast } from "@/components/toast-host";
 import { notifyDataChanged } from "@/lib/stores";
-import { cardTitle, AppIcon } from "@/components/app-icon";
 import { Lightbulb } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { vehicles as vApi } from "@/lib/api";
 
 const FUEL_OPTS = ["92", "95", "98", "0"];
-const r3 = (n: number) => Math.round(n * 1000) / 1000;
+
+/** Round to 0.01 元 (分). */
+const r2 = (n: number) => Math.round(n * 100) / 100;
+
+/** Parse a numeric string; returns NaN if empty/invalid. */
+const pn = (s: string): number => {
+  const n = parseFloat(s);
+  return isNaN(n) ? NaN : n;
+};
+
+/** Format number with thousand separators + 2 decimals for hint display. */
+const fmtHint = (n: number) =>
+  n.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const initial = (): FuelRecordCreate => ({
   recordDate: nowDatetimeLocal(),
@@ -38,13 +48,14 @@ const initial = (): FuelRecordCreate => ({
 
 export function AddPage() {
   const navigate = useNavigate();
-  // Lock to the active vehicle at mount time — do NOT re-fetch when the
-  // global vehicle changes, per spec.
   const [vehicle, setVehicle] = React.useState<Vehicle | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [form, setForm] = React.useState<FuelRecordCreate>(initial());
   const [last, setLast] = React.useState<FuelRecord | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
+
+  // Tracks which price fields are currently being edited (raw string).
+  const [editing, setEditing] = React.useState<Record<string, string>>({});
 
   React.useEffect(() => {
     const vid = localStorage.getItem("fuel.activeVehicleId");
@@ -57,10 +68,10 @@ export function AddPage() {
         const sorted = [...rs].sort((a, b) => b.recordDate.localeCompare(a.recordDate));
         const latest = sorted[0];
         setLast(latest);
-        const price = num(latest.price);
+        const price = pn(String(latest.price));
         setForm((f) => ({
           ...f,
-          price: price > 0 ? Number(price.toFixed(2)) : f.price,
+          price: price > 0 ? r2(price) : f.price,
           station: latest.station || f.station,
           fuelType: latest.fuelType || f.fuelType,
         }));
@@ -80,41 +91,68 @@ export function AddPage() {
     );
   }
 
-  const liters = num(form.liters);
-  const price = num(form.price);
-  const pump = num(form.pumpAmount);
-  const paid = num(form.paidAmount);
+  // ---------- helpers ----------
 
-  // --- linked setters ---
-  const setLiters = (v: number) => {
-    const nl = r3(v), np = r3(nl * price);
-    setForm((f) => ({ ...f, liters: nl, pumpAmount: np, paidAmount: np }));
+  /** Return display value for a price input. */
+  const displayVal = (key: string, val: number) =>
+    key in editing ? editing[key] : (val || "");
+
+  /** On focus: capture raw string for editing. */
+  const handleFocus = (key: string, val: number) => {
+    setEditing((e) => ({ ...e, [key]: val ? String(val) : "" }));
   };
-  const setPrice = (v: number) => {
-    const np = r3(v), npmp = r3(liters * np);
-    setForm((f) => ({ ...f, price: np, pumpAmount: npmp, paidAmount: npmp }));
+
+  /**
+   * On blur: parse → round → store → auto-calc the 3rd field.
+   * Any 2 of (liters, price, pumpAmount) filled → compute the 3rd.
+   */
+  const handlePriceBlur = (key: "liters" | "price" | "pumpAmount", raw: string) => {
+    const parsed = r2(pn(raw));
+    const value = isNaN(parsed) ? 0 : parsed;
+
+    setForm((f) => {
+      const next = { ...f, [key]: value };
+
+      const l = next.liters, p = next.price, m = next.pumpAmount;
+      const hasL = l > 0, hasP = p > 0, hasM = m > 0;
+      const count = (hasL ? 1 : 0) + (hasP ? 1 : 0) + (hasM ? 1 : 0);
+
+      if (count === 2) {
+        if (!hasL && hasP && hasM) next.liters = r2(m / p);       // 机显 ÷ 单价 = 油量
+        if (!hasP && hasL && hasM) next.price = r2(m / l);         // 机显 ÷ 油量 = 单价
+        if (!hasM && hasL && hasP) next.pumpAmount = r2(l * p);    // 油量 × 单价 = 机显
+      }
+
+      return next;
+    });
+
+    setEditing((e) => { const n = { ...e }; delete n[key]; return n; });
   };
-  const setPump = (v: number) => {
-    const np = r3(v), nl = price > 0 ? r3(np / price) : liters;
-    setForm((f) => ({ ...f, pumpAmount: np, liters: nl, paidAmount: np }));
+
+  const handleSimpleBlur = (key: "odometer" | "paidAmount", raw: string) => {
+    const parsed = r2(pn(raw));
+    setForm((f) => ({ ...f, [key]: isNaN(parsed) ? 0 : parsed }));
+    setEditing((e) => { const n = { ...e }; delete n[key]; return n; });
   };
-  const setPaid = (v: number) => setForm((f) => ({ ...f, paidAmount: r3(v) }));
+
+  // ---------- save ----------
 
   const doSave = async () => {
     setSubmitting(true);
     try {
       const payload: FuelRecordCreate = {
         ...form,
-        odometer: num(form.odometer),
-        liters: num(form.liters),
-        price: num(form.price),
-        pumpAmount: num(form.pumpAmount) || null,
-        paidAmount: num(form.paidAmount) || null,
+        odometer: pn(String(form.odometer)) || 0,
+        liters: pn(String(form.liters)) || 0,
+        price: pn(String(form.price)) || 0,
+        pumpAmount: pn(String(form.pumpAmount)) || null,
+        paidAmount: pn(String(form.paidAmount)) || null,
       };
       await api.create(vehicle.id, payload);
       pushToast("已添加");
       notifyDataChanged();
-      setForm({ ...form, odometer: 0, liters: 0, pumpAmount: 0, paidAmount: 0, note: "", light: false });
+      setForm({ ...form, odometer: 0, liters: 0, price: 0, pumpAmount: 0, paidAmount: 0, note: "", light: false });
+      setEditing({});
     } catch (err) {
       pushToast((err as Error).message);
     } finally {
@@ -122,17 +160,18 @@ export function AddPage() {
     }
   };
 
-  const priceAutofilled = last != null && num(last.price) > 0 && num(form.price) === Number(num(last.price).toFixed(2));
+  // ---------- render ----------
+
+  const priceAutofilled = last != null && pn(String(last.price)) > 0 && form.price === r2(pn(String(last.price)));
   const stationAutofilled = last != null && !!last.station && form.station === last.station;
 
-  // Formula string: 单价×加油量=机显金额
-  const formula = price > 0 && liters > 0
-    ? `${price.toFixed(2)} × ${liters.toFixed(2)} = ${pump.toFixed(2)}`
-    : null;
+  // Hint for the amount field: show thousand-separated value
+  const pumpVal = form.pumpAmount;
+  const paidVal = form.paidAmount;
 
   return (
     <div>
-      {/* Header: back + title + save button */}
+      {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
         <button
           className="btn btn-outline"
@@ -166,9 +205,11 @@ export function AddPage() {
               className="form-input"
               type="number"
               step="0.1"
-              value={form.odometer || ""}
-              placeholder={last ? `上次: ${Math.round(num(last.odometer))}km` : "当前里程"}
-              onChange={(e) => setForm((f) => ({ ...f, odometer: parseFloat(e.target.value) || 0 }))}
+              value={displayVal("odometer", form.odometer)}
+              placeholder={last ? `上次: ${Math.round(pn(String(last.odometer)))}km` : "当前里程"}
+              onFocus={() => handleFocus("odometer", form.odometer)}
+              onChange={(e) => setEditing((ed) => ({ ...ed, odometer: e.target.value }))}
+              onBlur={(e) => handleSimpleBlur("odometer", e.target.value)}
               required
             />
           </div>
@@ -180,11 +221,10 @@ export function AddPage() {
           </div>
         </div>
 
-        {/* 单价×加油量=机显金额 — label row above, 3 inputs below, aligned */}
+        {/* 单价 / 加油量 / 机显金额 — fill any 2, blur to compute the 3rd */}
         <div className="form-group">
           <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
             <label style={{ margin: 0 }}>单价 × 加油量 = 机显金额</label>
-            {formula ? <span style={{ fontSize: 12, color: "var(--accent)" }}>{formula}</span> : null}
             {priceAutofilled ? <div className="autofill-hint"><Lightbulb size={12} /> 自动填充上次价格</div> : null}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
@@ -192,38 +232,60 @@ export function AddPage() {
               className="form-input"
               type="number"
               step="0.01"
-              value={price || ""}
-              placeholder="单价"
-              onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
+              value={displayVal("price", form.price)}
+              placeholder="单价 ¥"
+              onFocus={() => handleFocus("price", form.price)}
+              onChange={(e) => setEditing((ed) => ({ ...ed, price: e.target.value }))}
+              onBlur={(e) => handlePriceBlur("price", e.target.value)}
               required
             />
             <input
               className="form-input"
               type="number"
               step="0.01"
-              value={liters || ""}
+              value={displayVal("liters", form.liters)}
               placeholder="加油量 L"
-              onChange={(e) => setLiters(parseFloat(e.target.value) || 0)}
+              onFocus={() => handleFocus("liters", form.liters)}
+              onChange={(e) => setEditing((ed) => ({ ...ed, liters: e.target.value }))}
+              onBlur={(e) => handlePriceBlur("liters", e.target.value)}
               required
             />
-            <input
-              className="form-input"
-              type="number"
-              step="0.01"
-              value={pump || ""}
-              placeholder="机显金额"
-              onChange={(e) => setPump(parseFloat(e.target.value) || 0)}
-            />
+            <div>
+              <input
+                className="form-input"
+                type="number"
+                step="0.01"
+                value={displayVal("pumpAmount", form.pumpAmount)}
+                placeholder="机显金额 ¥"
+                onFocus={() => handleFocus("pumpAmount", form.pumpAmount)}
+                onChange={(e) => setEditing((ed) => ({ ...ed, pumpAmount: e.target.value }))}
+                onBlur={(e) => handlePriceBlur("pumpAmount", e.target.value)}
+              />
+              {pumpVal > 0 && !("pumpAmount" in editing) ? (
+                <div style={{ fontSize: 11, color: "var(--text2)", marginTop: 2, paddingLeft: 2 }}>
+                  ¥{fmtHint(pumpVal)}
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
 
         <div className="form-row">
           <div className="form-group">
             <label>实付金额 ¥</label>
-            <input className="form-input" type="number" step="0.01" value={paid || ""} onChange={(e) => setPaid(parseFloat(e.target.value) || 0)} placeholder="通常 = 机显" />
-            {paid > 0 && pump > 0 && Math.abs(paid - pump) > 0.01 ? (
-              <div className="autofill-hint" style={{ color: "var(--orange)" }}>
-                <Lightbulb size={12} /> 差额 ¥{(paid - pump).toFixed(2)}
+            <input
+              className="form-input"
+              type="number"
+              step="0.01"
+              value={displayVal("paidAmount", form.paidAmount)}
+              placeholder="通常 = 机显"
+              onFocus={() => handleFocus("paidAmount", form.paidAmount)}
+              onChange={(e) => setEditing((ed) => ({ ...ed, paidAmount: e.target.value }))}
+              onBlur={(e) => handleSimpleBlur("paidAmount", e.target.value)}
+            />
+            {paidVal > 0 && !("paidAmount" in editing) ? (
+              <div style={{ fontSize: 11, color: "var(--text2)", marginTop: 2, paddingLeft: 2 }}>
+                ¥{fmtHint(paidVal)}
               </div>
             ) : null}
           </div>
