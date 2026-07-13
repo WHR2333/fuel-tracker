@@ -31,6 +31,8 @@ export interface ConsumptionPoint {
   price: number;
   l_per_100: number; // computed consumption
   isAnomaly: boolean;
+  /** Number of preceding non-full records merged into this calculation. */
+  mergedCount: number;
 }
 
 export interface Stats {
@@ -99,6 +101,12 @@ export const calcStats = (records: FuelRecord[]): Stats | null => {
   for (let i = 1; i < sorted.length; i++) {
     const c = validCon(sorted, i);
     if (c == null) continue;
+    // Count non-full records between prev full tank and current.
+    let merged = 0;
+    for (let j = i - 1; j >= 0; j--) {
+      if (sorted[j].fullTank === "yes") break;
+      merged++;
+    }
     consumptions.push({
       date: sorted[i].recordDate,
       odometer: num(sorted[i].odometer),
@@ -106,6 +114,7 @@ export const calcStats = (records: FuelRecord[]): Stats | null => {
       price: num(sorted[i].price),
       l_per_100: c,
       isAnomaly: false, // backfilled below
+      mergedCount: merged,
     });
   }
 

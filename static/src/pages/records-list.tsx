@@ -17,6 +17,8 @@ import { EmptyState } from "@/components/empty-state";
 import { pushToast } from "@/components/toast-host";
 import { fuelLabel, num } from "@/lib/format";
 import { useActiveVehicleVersion, useDataVersion } from "@/lib/stores";
+import { getRecordStatus, consumptionStale } from "@/lib/record-status";
+import type { RecordStatus } from "@/lib/record-status";
 import { Plus } from "lucide-react";
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -71,7 +73,7 @@ export function RecordsListPage() {
   // Build card items with inter-card gaps.
   const cards = scoped;
   const items: Array<
-    | { kind: "card"; record: FuelRecord; con?: number }
+    | { kind: "card"; record: FuelRecord; con?: number; status?: RecordStatus }
     | { kind: "gap"; id: string; costPerKm: number; liters: number; km: number }
   > = [];
 
@@ -79,6 +81,10 @@ export function RecordsListPage() {
   // the reverse of our display order). Build a map first.
   const sortedAsc = [...scoped].sort((a, b) => num(a.odometer) - num(b.odometer));
   const conMap = new Map<string, number>();
+  const statusMap = new Map<string, RecordStatus>();
+  for (let i = 0; i < sortedAsc.length; i++) {
+    statusMap.set(sortedAsc[i].id, getRecordStatus(sortedAsc, i));
+  }
   for (let i = 1; i < sortedAsc.length; i++) {
     const prev = sortedAsc[i - 1];
     const cur = sortedAsc[i];
@@ -90,7 +96,7 @@ export function RecordsListPage() {
   }
 
   for (let i = 0; i < cards.length; i++) {
-    items.push({ kind: "card", record: cards[i], con: conMap.get(cards[i].id) });
+    items.push({ kind: "card", record: cards[i], con: conMap.get(cards[i].id), status: statusMap.get(cards[i].id) });
     const next = cards[i + 1];
     if (next) {
       const km = num(cards[i].odometer) - num(next.odometer);
@@ -151,6 +157,17 @@ export function RecordsListPage() {
         </div>
       </div>
 
+      {/* Stale consumption banner */}
+      {consumptionStale(records) && records.length >= 2 ? (
+        <div style={{
+          marginBottom: 10, padding: "8px 12px", borderRadius: 8,
+          background: "color-mix(in srgb, var(--orange) 12%, transparent)",
+          color: "var(--orange)", fontSize: 13,
+        }}>
+          ⚠ 油耗曲线暂无更新，建议加满跳枪一次以恢复数据
+        </div>
+      ) : null}
+
       {loading ? (
         <EmptyState text="加载中…" />
       ) : cards.length === 0 ? (
@@ -167,6 +184,7 @@ export function RecordsListPage() {
                 key={it.record.id}
                 record={it.record}
                 con={it.con}
+                status={it.status}
                 collapsed={allCollapsed}
                 onNavigate={() => navigate(`/records/${it.record.id}`)}
               />
@@ -203,9 +221,10 @@ function YearPicker({ year, onChange, records }: { year: string; onChange: (y: s
   );
 }
 
-function RecordCard({ record, con, collapsed: globalCollapsed, onNavigate }: {
+function RecordCard({ record, con, status, collapsed: globalCollapsed, onNavigate }: {
   record: FuelRecord;
   con?: number;
+  status?: RecordStatus;
   collapsed: boolean;
   onNavigate: () => void;
 }) {
@@ -242,6 +261,17 @@ function RecordCard({ record, con, collapsed: globalCollapsed, onNavigate }: {
           {collapsed ? "▼" : "▲"}
         </button>
       </div>
+
+      {/* Status label */}
+      {status?.label ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontSize: 11 }}>
+          <span style={{
+            width: 8, height: 8, borderRadius: "50%",
+            background: status.dot, flexShrink: 0,
+          }} />
+          <span style={{ color: status.dot }}>{status.label}</span>
+        </div>
+      ) : null}
 
       {/* Expanded details */}
       {!collapsed ? (

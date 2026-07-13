@@ -13,6 +13,7 @@ import type { FuelRecord, FuelRecordCreate, FullTank, Vehicle } from "@/lib/type
 import { fuelLabel, nowDatetimeLocal } from "@/lib/format";
 import { pushToast } from "@/components/toast-host";
 import { notifyDataChanged } from "@/lib/stores";
+import { countConsecutiveNonFull } from "@/lib/record-status";
 import { Lightbulb, SkipForward } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { vehicles as vApi } from "@/lib/api";
@@ -49,6 +50,7 @@ export function AddPage() {
   const [loading, setLoading] = React.useState(true);
   const [form, setForm] = React.useState<FuelRecordCreate>(initial());
   const [last, setLast] = React.useState<FuelRecord | null>(null);
+  const [allRecords, setAllRecords] = React.useState<FuelRecord[]>([]);
   const [submitting, setSubmitting] = React.useState(false);
 
   // Tracks which price fields are currently being edited (raw string).
@@ -61,6 +63,7 @@ export function AddPage() {
       setVehicle(v);
       return api.list(v.id);
     }).then((rs) => {
+      setAllRecords(rs);
       if (rs.length > 0) {
         const sorted = [...rs].sort((a, b) => b.recordDate.localeCompare(a.recordDate));
         const latest = sorted[0];
@@ -161,6 +164,36 @@ export function AddPage() {
       };
       await api.create(vehicle.id, payload);
       pushToast("已添加");
+
+      // Scenario hints after save.
+      const isFull = form.fullTank === "yes";
+      const prevFull = last?.fullTank === "yes";
+      const hasHistory = allRecords.length > 0;
+
+      if (!hasHistory && !isFull) {
+        pushToast("首次加油建议加满跳枪，否则无法计算本次油耗");
+      } else if (!isFull) {
+        // Count consecutive non-full including this one.
+        let consecNonFull = 1;
+        for (let i = allRecords.length - 1; i >= 0; i--) {
+          if (allRecords[i].fullTank !== "yes") consecNonFull++;
+          else break;
+        }
+        pushToast("本次未加满，将不参与单次油耗计算，仅计入总账");
+        if (consecNonFull >= 3) {
+          pushToast(`您已连续${consecNonFull}次未加满，建议加满跳枪`);
+        }
+      } else if (isFull && !prevFull && hasHistory) {
+        let merged = 0;
+        for (let i = allRecords.length - 1; i >= 0; i--) {
+          if (allRecords[i].fullTank !== "yes") merged++;
+          else break;
+        }
+        if (merged > 0) {
+          pushToast(`本次加满将结算之前（${merged}次）未满加油量`);
+        }
+      }
+
       notifyDataChanged();
       navigate("/");
     } catch (err) {

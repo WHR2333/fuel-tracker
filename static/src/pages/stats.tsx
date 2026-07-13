@@ -280,7 +280,16 @@ function TrendTab({ records }: { records: FuelRecord[] }) {
   const tripData = (stats?.consumptions ?? []).map((c) => ({
     date: c.date.slice(0, 7),
     con: Number(c.l_per_100.toFixed(2)),
+    merged: c.mergedCount,
   }));
+
+  // Count consecutive non-full records at the end for stale hint.
+  const sortedAsc = [...records].sort((a, b) => num(a.odometer) - num(b.odometer));
+  let trailingNonFull = 0;
+  for (let i = sortedAsc.length - 1; i >= 0; i--) {
+    if (sortedAsc[i].fullTank !== "yes") trailingNonFull++;
+    else break;
+  }
 
   const costData = monthly.map((m) => ({
     month: m.month.slice(2),
@@ -293,6 +302,17 @@ function TrendTab({ records }: { records: FuelRecord[] }) {
 
   return (
     <>
+      {/* Consecutive non-full hint */}
+      {trailingNonFull >= 3 ? (
+        <div style={{
+          marginBottom: 10, padding: "8px 12px", borderRadius: 8,
+          background: "color-mix(in srgb, var(--orange) 12%, transparent)",
+          color: "var(--orange)", fontSize: 13,
+        }}>
+          ⚠ 已连续{trailingNonFull}次未加满，油耗曲线暂无新数据点
+        </div>
+      ) : null}
+
       {tripData.length > 0 ? (
         <div className="card">
           <div className="card-title">{cardTitle("chart-line", "单次油耗趋势")}</div>
@@ -302,8 +322,36 @@ function TrendTab({ records }: { records: FuelRecord[] }) {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
                 <XAxis dataKey="date" tick={{ fontSize: 11, fill: "var(--chart-label)" }} />
                 <YAxis tick={{ fontSize: 11, fill: "var(--chart-label)" }} />
-                <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
-                <Line type="monotone" dataKey="con" stroke="var(--accent)" strokeWidth={2} dot={{ r: 3 }} name="L/100km" />
+                <Tooltip
+                  contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
+                  formatter={(value: number, _name: string, props: { payload?: { merged?: number } }) => {
+                    const m = props.payload?.merged ?? 0;
+                    return [
+                      m > 0 ? `${value} L/100km（合并结算，含之前${m}次未满加油）` : `${value} L/100km`,
+                      "油耗",
+                    ];
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="con"
+                  stroke="var(--accent)"
+                  strokeWidth={2}
+                  dot={(props: { cx?: number; cy?: number; payload?: { merged?: number } }) => {
+                    const { cx, cy, payload } = props;
+                    const isMerged = (payload?.merged ?? 0) > 0;
+                    return (
+                      <circle
+                        key={`dot-${cx}-${cy}`}
+                        cx={cx} cy={cy} r={isMerged ? 5 : 3}
+                        fill={isMerged ? "var(--orange)" : "var(--accent)"}
+                        stroke={isMerged ? "var(--orange)" : "var(--accent)"}
+                      />
+                    );
+                  }}
+                  name="L/100km"
+                  connectNulls={false}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
