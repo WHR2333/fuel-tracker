@@ -74,7 +74,7 @@ export function RecordsListPage() {
   const cards = scoped;
   const items: Array<
     | { kind: "card"; record: FuelRecord; con?: number; status?: RecordStatus }
-    | { kind: "gap"; id: string; costPerKm: number; liters: number; km: number }
+    | { kind: "gap"; id: string; km: number; estFuel: number | null; estCost: number | null }
   > = [];
 
   // Compute per-record consumption (needs sorted-by-odometer list, which is
@@ -91,13 +91,22 @@ export function RecordsListPage() {
     if (cur.skippedPrevious) continue;
     // Sum all liters from prev full tank to current (inclusive).
     let totalLiters = num(cur.liters);
+    let segStart = i; // track where this segment starts
     for (let j = i - 1; j >= 0; j--) {
       totalLiters += num(sortedAsc[j].liters);
+      segStart = j;
       if (sortedAsc[j].fullTank === "yes") {
         const dist = num(cur.odometer) - num(sortedAsc[j].odometer);
         if (dist > 0) {
           const c = (totalLiters / dist) * 100;
-          if (c > 0 && c < 50) conMap.set(cur.id, c);
+          if (c > 0 && c < 50) {
+            // Assign this consumption to the full record AND all preceding
+            // non-full records in the same segment.
+            conMap.set(cur.id, c);
+            for (let k = j + 1; k < i; k++) {
+              conMap.set(sortedAsc[k].id, c);
+            }
+          }
         }
         break;
       }
@@ -109,9 +118,18 @@ export function RecordsListPage() {
     const next = cards[i + 1];
     if (next) {
       const km = num(cards[i].odometer) - num(next.odometer);
-      const liters = num(cards[i].liters);
-      const costPerKm = km > 0 ? num(cards[i].totalCost) / km : 0;
-      items.push({ kind: "gap", id: `${cards[i].id}-${next.id}`, costPerKm, liters, km });
+      const price = num(cards[i].price);
+      // Use settled consumption rate for gap estimation if available.
+      const con = conMap.get(cards[i].id) ?? conMap.get(next.id);
+      const estFuel = con != null && km > 0 ? (con * km) / 100 : null;
+      const estCost = estFuel != null && price > 0 ? estFuel * price : null;
+      items.push({
+        kind: "gap",
+        id: `${cards[i].id}-${next.id}`,
+        km,
+        estFuel,
+        estCost,
+      });
     }
   }
 
@@ -198,7 +216,7 @@ export function RecordsListPage() {
                 onNavigate={() => navigate(`/records/${it.record.id}`)}
               />
             ) : (
-              <GapRow key={it.id} costPerKm={it.costPerKm} liters={it.liters} km={it.km} />
+              <GapRow key={it.id} km={it.km} estFuel={it.estFuel} estCost={it.estCost} />
             ),
           )}
         </div>
@@ -311,7 +329,7 @@ function Pill({ children, highlight }: { children: React.ReactNode; highlight?: 
   );
 }
 
-function GapRow({ costPerKm, liters, km }: { costPerKm: number; liters: number; km: number }) {
+function GapRow({ km, estFuel, estCost }: { km: number; estFuel: number | null; estCost: number | null }) {
   return (
     <div style={{
       textAlign: "center",
@@ -320,7 +338,9 @@ function GapRow({ costPerKm, liters, km }: { costPerKm: number; liters: number; 
       padding: "3px 0",
       marginBottom: 2,
     }}>
-      {costPerKm > 0 ? `${costPerKm.toFixed(2)}元/公里` : "—"} · 用{liters.toFixed(2)}升 · 跑{Math.round(km)}公里
+      {estFuel != null && estCost != null
+        ? `预估用油 ${estFuel.toFixed(2)}升 · ¥${estCost.toFixed(2)} · 跑${Math.round(km)}公里`
+        : `跑${Math.round(km)}公里 · 下次加满后计算`}
     </div>
   );
 }
