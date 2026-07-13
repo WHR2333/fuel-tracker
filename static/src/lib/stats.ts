@@ -471,7 +471,7 @@ export const calcBehavior = (
   records: FuelRecord[],
   consumptions: number[],
 ): BehaviorStats | null => {
-  if (records.length < 2) return null;
+  if (records.length < 2 || consumptions.length < 3) return null;
   const sorted = [...records].sort(
     (a, b) => new Date(a.recordDate).getTime() - new Date(b.recordDate).getTime(),
   );
