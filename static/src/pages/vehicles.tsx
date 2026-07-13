@@ -131,7 +131,7 @@ export function VehiclesPage() {
             />
           </label>
           <div style={{ flex: 1 }} />
-          <ClearDataButton onClear={clearAll} />
+          {isAdmin() ? <ClearDataButton onClear={clearAll} /> : null}
         </div>
       </div>
 
