@@ -135,8 +135,8 @@ export function VehiclesPage() {
             />
           </label>
         </div>
-        <div style={{ marginTop: 12 }}>
-          <button className="btn btn-danger" style={{ width: "100%" }} onClick={clearAll}>清空所有数据</button>
+        <div style={{ marginTop: 12, textAlign: "right" }}>
+          <ClearDataButton onClear={clearAll} />
         </div>
       </div>
 
@@ -152,6 +152,63 @@ export function VehiclesPage() {
           notifyVehiclesChanged();
         }}
       />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Clear data — two-step button
+// ---------------------------------------------------------------------------
+
+function ClearDataButton({ onClear }: { onClear: () => void }) {
+  const [confirming, setConfirming] = React.useState(false);
+  const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleClick = () => {
+    if (!confirming) {
+      setConfirming(true);
+      // Auto-cancel after 5 seconds if user doesn't confirm.
+      timerRef.current = setTimeout(() => setConfirming(false), 5000);
+    } else {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      setConfirming(false);
+      onClear();
+    }
+  };
+
+  React.useEffect(() => {
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, []);
+
+  if (!confirming) {
+    return (
+      <button
+        className="btn btn-outline"
+        style={{ fontSize: 12, padding: "4px 10px", color: "var(--red)", borderColor: "var(--red)" }}
+        onClick={handleClick}
+      >
+        清空所有数据
+      </button>
+    );
+  }
+
+  return (
+    <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+      <span style={{ fontSize: 12, color: "var(--red)" }}>确认清空？不可恢复</span>
+      <button
+        className="btn btn-danger"
+        style={{ fontSize: 12, padding: "4px 10px" }}
+        onClick={handleClick}
+      >
+        确认清空
+      </button>
+      <button
+        className="btn btn-outline"
+        style={{ fontSize: 12, padding: "4px 8px" }}
+        onClick={() => { if (timerRef.current) clearTimeout(timerRef.current); setConfirming(false); }}
+      >
+        取消
+      </button>
     </div>
   );
 }
