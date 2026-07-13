@@ -161,8 +161,7 @@ export function AddPage() {
       await api.create(vehicle.id, payload);
       pushToast("已添加");
       notifyDataChanged();
-      setForm({ ...form, odometer: 0, liters: 0, price: 0, pumpAmount: 0, paidAmount: 0, note: "", light: false });
-      setEditing({});
+      navigate("/");
     } catch (err) {
       pushToast((err as Error).message);
     } finally {
