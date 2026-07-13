@@ -146,7 +146,7 @@ export const latestConsumption = (
       const dist = num(cur.odometer) - num(prev.odometer);
       const days = Math.max(1, Math.round(
         (new Date(cur.recordDate).getTime() - new Date(prev.recordDate).getTime()) / 86400000,
-      ));
+      ) + 1);
       const liters = num(cur.liters);
       const totalCost = num(cur.totalCost);
       return {
