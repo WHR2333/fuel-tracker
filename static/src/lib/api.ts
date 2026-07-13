@@ -263,10 +263,10 @@ export const admin = {
   },
 };
 
-// --- CSV Import / Export (ZIP with 3 CSVs) ---
+// --- Excel Import / Export (.xlsx with 3 sheets) ---
 
 export const dataIO = {
-  exportZip: async (): Promise<Blob> => {
+  exportXlsx: async (): Promise<Blob> => {
     const token = getToken();
     const res = await fetch(`${BASE}/data/export`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -274,7 +274,7 @@ export const dataIO = {
     if (!res.ok) throw new ApiError(res.status, "Export failed");
     return res.blob();
   },
-  importZip: async (file: File): Promise<{ vehicles: number; records: number; maint: number; skipped?: number }> => {
+  importXlsx: async (file: File): Promise<{ vehicles: number; records: number; maint: number }> => {
     const token = getToken();
     const form = new FormData();
     form.append("file", file);

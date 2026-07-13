@@ -116,16 +116,16 @@ export function VehiclesPage() {
       <div className="card">
         <div className="card-title">{cardTitle("wrench", "数据管理")}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <button className="btn btn-outline" style={{ flex: "0 0 auto", padding: "6px 12px", fontSize: 13 }} onClick={handleExportCsv}>导出数据</button>
+          <button className="btn btn-outline" style={{ flex: "0 0 auto", padding: "6px 12px", fontSize: 13 }} onClick={handleExportXlsx}>导出数据</button>
           <label className="btn btn-outline" style={{ flex: "0 0 auto", padding: "6px 12px", fontSize: 13, cursor: "pointer" }}>
             导入数据
             <input
               type="file"
-              accept=".zip"
+              accept=".xlsx"
               style={{ display: "none" }}
               onChange={(e) => {
                 const f = e.target.files?.[0];
-                if (f) handleImportCsv(f);
+                if (f) handleImportXlsx(f);
                 e.target.value = "";
               }}
             />
@@ -321,20 +321,20 @@ function AccountCard() {
 //   ---
 //   (next vehicle block or EOF)
 
-function handleExportCsv() {
-  dataIO.exportZip().then((blob) => {
+function handleExportXlsx() {
+  dataIO.exportXlsx().then((blob) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `省油的灯_${new Date().toISOString().slice(0, 10)}.zip`;
+    a.download = `省油的灯_${new Date().toISOString().slice(0, 10)}.xlsx`;
     a.click();
     URL.revokeObjectURL(url);
     pushToast("已导出");
   }).catch((e) => pushToast((e as Error).message));
 }
 
-function handleImportCsv(file: File) {
-  dataIO.importZip(file).then((counts) => {
+function handleImportXlsx(file: File) {
+  dataIO.importXlsx(file).then((counts) => {
     pushToast(`已导入：${counts.vehicles} 车 / ${counts.records} 加油 / ${counts.maint} 保养`);
     notifyVehiclesChanged();
     notifyDataChanged();
