@@ -263,6 +263,39 @@ export const admin = {
   },
 };
 
+// --- CSV Import / Export (ZIP with 3 CSVs) ---
+
+export const dataIO = {
+  exportZip: async (): Promise<Blob> => {
+    const token = getToken();
+    const res = await fetch(`${BASE}/data/export`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new ApiError(res.status, "Export failed");
+    return res.blob();
+  },
+  importZip: async (file: File): Promise<{ vehicles: number; records: number; maint: number; skipped?: number }> => {
+    const token = getToken();
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`${BASE}/data/import`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+    if (!res.ok) {
+      let detail = "Import failed";
+      try {
+        const j = await res.json();
+        if (j?.detail?.message) detail = j.detail.message;
+        else if (j?.detail) detail = String(j.detail);
+      } catch { /* ignore */ }
+      throw new ApiError(res.status, detail);
+    }
+    return res.json();
+  },
+};
+
 // --- Users (admin) ---
 
 export const users = {

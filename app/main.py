@@ -9,7 +9,7 @@ from starlette.staticfiles import StaticFiles
 
 from app.config import settings
 from app.db import init_db
-from app.routers import admin, analytics, maintenance, records, users, vehicles
+from app.routers import admin, analytics, data_io, maintenance, records, users, vehicles
 from app.security import router as auth_router
 
 _STATIC_DIR = Path("/app/static_dist")
@@ -48,6 +48,7 @@ def create_app() -> FastAPI:
     app.include_router(maintenance.router)
     app.include_router(analytics.router)
     app.include_router(admin.router)
+    app.include_router(data_io.router)
 
     @app.get("/api/v1/health", tags=["meta"])
     def health() -> dict:

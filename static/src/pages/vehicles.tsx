@@ -5,8 +5,8 @@
 
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import { vehicles as api, admin, users as usersApi } from "@/lib/api";
-import type { Vehicle, ExportPayload } from "@/lib/types";
+import { vehicles as api, dataIO, users as usersApi } from "@/lib/api";
+import type { Vehicle } from "@/lib/types";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { cardTitle, AppIcon } from "@/components/app-icon";
 import { EmptyState } from "@/components/empty-state";
@@ -116,16 +116,16 @@ export function VehiclesPage() {
       <div className="card">
         <div className="card-title">{cardTitle("wrench", "数据管理")}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <button className="btn btn-outline" style={{ flex: "0 0 auto", padding: "6px 12px", fontSize: 13 }} onClick={handleExportTxt}>导出数据</button>
+          <button className="btn btn-outline" style={{ flex: "0 0 auto", padding: "6px 12px", fontSize: 13 }} onClick={handleExportCsv}>导出数据</button>
           <label className="btn btn-outline" style={{ flex: "0 0 auto", padding: "6px 12px", fontSize: 13, cursor: "pointer" }}>
             导入数据
             <input
               type="file"
-              accept=".txt"
+              accept=".zip"
               style={{ display: "none" }}
               onChange={(e) => {
                 const f = e.target.files?.[0];
-                if (f) handleImportTxt(f);
+                if (f) handleImportCsv(f);
                 e.target.value = "";
               }}
             />
@@ -321,122 +321,21 @@ function AccountCard() {
 //   ---
 //   (next vehicle block or EOF)
 
-function handleExportTxt() {
-  admin.export().then((data) => {
-    const lines: string[] = [];
-    lines.push("# 省油的灯 数据导出");
-    lines.push(`# 导出时间: ${new Date().toISOString()}`);
-    lines.push(`# 车辆数: ${data.vehicles.length}  加油数: ${data.records.length}  保养数: ${data.maint.length}`);
-    lines.push("---");
-
-    for (const v of data.vehicles) {
-      lines.push("[车辆]");
-      const fields: Record<string, unknown> = v as unknown as Record<string, unknown>;
-      for (const [k, val] of Object.entries(fields)) {
-        lines.push(`${k}=${val === null || val === undefined ? "" : String(val)}`);
-      }
-      lines.push("");
-    }
-
-    for (const r of data.records) {
-      lines.push("[加油记录]");
-      const fields: Record<string, unknown> = r as unknown as Record<string, unknown>;
-      for (const [k, val] of Object.entries(fields)) {
-        lines.push(`${k}=${val === null || val === undefined ? "" : String(val)}`);
-      }
-      lines.push("");
-    }
-
-    for (const m of data.maint) {
-      lines.push("[保养记录]");
-      const fields: Record<string, unknown> = m as unknown as Record<string, unknown>;
-      for (const [k, val] of Object.entries(fields)) {
-        lines.push(`${k}=${val === null || val === undefined ? "" : String(val)}`);
-      }
-      lines.push("");
-    }
-
-    lines.push("---");
-    const blob = new Blob([lines.join("\n")], { type: "text/plain; charset=utf-8" });
+function handleExportCsv() {
+  dataIO.exportZip().then((blob) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `省油的灯_${new Date().toISOString().slice(0, 10)}.txt`;
+    a.download = `省油的灯_${new Date().toISOString().slice(0, 10)}.zip`;
     a.click();
     URL.revokeObjectURL(url);
     pushToast("已导出");
   }).catch((e) => pushToast((e as Error).message));
 }
 
-function parseTxtBlocks(text: string): { vehicles: Record<string, unknown>[]; records: Record<string, unknown>[]; maint: Record<string, unknown>[] } {
-  const vehicles: Record<string, unknown>[] = [];
-  const records: Record<string, unknown>[] = [];
-  const maint: Record<string, unknown>[] = [];
-
-  let currentBlock: Record<string, unknown> | null = null;
-  let currentType: string | null = null;
-
-  for (const rawLine of text.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith("#") || line === "---") continue;
-
-    if (line === "[车辆]") {
-      if (currentBlock && currentType) pushBlock(currentType, currentBlock);
-      currentType = "vehicle";
-      currentBlock = {};
-      continue;
-    }
-    if (line === "[加油记录]") {
-      if (currentBlock && currentType) pushBlock(currentType, currentBlock);
-      currentType = "record";
-      currentBlock = {};
-      continue;
-    }
-    if (line === "[保养记录]") {
-      if (currentBlock && currentType) pushBlock(currentType, currentBlock);
-      currentType = "maint";
-      currentBlock = {};
-      continue;
-    }
-
-    const eq = line.indexOf("=");
-    if (eq < 0 || !currentBlock) continue;
-    const key = line.slice(0, eq);
-    const val = line.slice(eq + 1);
-    currentBlock[key] = val === "" ? null : val;
-  }
-  // flush last block
-  if (currentBlock && currentType) pushBlock(currentType, currentBlock);
-
-  function pushBlock(type: string, block: Record<string, unknown>) {
-    if (type === "vehicle") vehicles.push(block);
-    else if (type === "record") records.push(block);
-    else if (type === "maint") maint.push(block);
-  }
-
-  return { vehicles, records, maint };
-}
-
-function handleImportTxt(file: File) {
-  file.text().then((text) => {
-    const blocks = parseTxtBlocks(text);
-    if (blocks.vehicles.length === 0 && blocks.records.length === 0 && blocks.maint.length === 0) {
-      pushToast("文件格式不对，没有识别到数据");
-      return;
-    }
-    // Convert raw key=value maps into the shape admin.import expects.
-    const payload: ExportPayload = {
-      version: "v5",
-      exportedAt: new Date().toISOString(),
-      vehicles: blocks.vehicles as unknown as ExportPayload["vehicles"],
-      records: blocks.records as unknown as ExportPayload["records"],
-      maint: blocks.maint as unknown as ExportPayload["maint"],
-    };
-    return admin.import(payload);
-  }).then((counts) => {
-    if (!counts) return;
+function handleImportCsv(file: File) {
+  dataIO.importZip(file).then((counts) => {
     pushToast(`已导入：${counts.vehicles} 车 / ${counts.records} 加油 / ${counts.maint} 保养`);
-    // Reload everything by triggering the stores.
     notifyVehiclesChanged();
     notifyDataChanged();
   }).catch((e) => pushToast((e as Error).message));
