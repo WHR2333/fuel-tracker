@@ -278,7 +278,7 @@ function RecordCard({ record, con, status, collapsed: globalCollapsed, onNavigat
             width: 8, height: 8, borderRadius: "50%",
             background: status.dot, flexShrink: 0,
           }} />
-          <span style={{ color: status.dot }}>{status.label}</span>
+          <span style={{ color: status.textColor }}>{status.label}</span>
         </div>
       ) : null}
 

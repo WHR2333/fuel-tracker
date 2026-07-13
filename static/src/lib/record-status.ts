@@ -10,17 +10,18 @@ export interface RecordStatus {
   label: string;
   /** CSS color variable name. */
   color: "accent2" | "accent" | "text2" | "orange";
-  /** Dot color (inline style). */
+  /** Dot + text color (inline style). */
   dot: string;
+  textColor: string;
   /** Longer tooltip. */
   tip: string;
 }
 
 const COLORS = {
-  accent2: { dot: "var(--accent2)", label: "var(--accent2)" },   // green
-  accent:  { dot: "var(--accent)",  label: "var(--accent)" },     // blue
-  text2:   { dot: "var(--text2)",   label: "var(--text2)" },      // gray
-  orange:  { dot: "var(--orange)",  label: "var(--orange)" },     // orange
+  accent2: { dot: "var(--accent2)", textColor: "var(--accent2)" },   // green
+  accent:  { dot: "var(--accent)",  textColor: "var(--accent)" },     // blue
+  text2:   { dot: "var(--text2)",   textColor: "var(--text2)" },      // gray
+  orange:  { dot: "var(--orange)",  textColor: "var(--orange)" },     // orange
 };
 
 /**
