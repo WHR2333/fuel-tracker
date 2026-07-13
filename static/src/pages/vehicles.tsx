@@ -37,8 +37,6 @@ export function VehiclesPage() {
   React.useEffect(() => { reload(); }, [reload]);
 
   const clearAll = async () => {
-    if (!confirm("确定清空所有数据？此操作不可撤销！")) return;
-    if (!confirm("再次确认：清空所有车辆、加油记录、保养记录？")) return;
     try {
       for (const v of list) {
         await api.remove(v.id);
@@ -160,54 +158,82 @@ export function VehiclesPage() {
 // ---------------------------------------------------------------------------
 
 function ClearDataButton({ onClear }: { onClear: () => void }) {
-  const [confirming, setConfirming] = React.useState(false);
-  const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [open, setOpen] = React.useState(false);
+  const [password, setPassword] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const wrapperRef = React.useRef<HTMLDivElement>(null);
+  const username = getUsername() ?? "";
 
-  const handleClick = () => {
-    if (!confirming) {
-      setConfirming(true);
-      // Auto-cancel after 5 seconds if user doesn't confirm.
-      timerRef.current = setTimeout(() => setConfirming(false), 5000);
-    } else {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      setConfirming(false);
+  // Close on outside click.
+  React.useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false); setPassword(""); setError(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const handleConfirm = async () => {
+    if (!password) return;
+    setLoading(true); setError(null);
+    try {
+      // Verify password by attempting login.
+      const res = await fetch(`${import.meta.env.VITE_API_BASE ?? "/api/v1"}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      if (!res.ok) {
+        setError("密码错误");
+        return;
+      }
+      setOpen(false); setPassword("");
       onClear();
+    } catch {
+      setError("验证失败，请重试");
+    } finally {
+      setLoading(false);
     }
   };
 
-  React.useEffect(() => {
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, []);
-
-  if (!confirming) {
-    return (
+  return (
+    <div ref={wrapperRef} style={{ position: "relative", display: "inline-block" }}>
       <button
         className="btn btn-outline"
         style={{ fontSize: 12, padding: "4px 10px", color: "var(--red)", borderColor: "var(--red)" }}
-        onClick={handleClick}
+        onClick={() => setOpen(!open)}
       >
         清空所有数据
       </button>
-    );
-  }
-
-  return (
-    <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-      <span style={{ fontSize: 12, color: "var(--red)" }}>确认清空？不可恢复</span>
-      <button
-        className="btn btn-danger"
-        style={{ fontSize: 12, padding: "4px 10px" }}
-        onClick={handleClick}
-      >
-        确认清空
-      </button>
-      <button
-        className="btn btn-outline"
-        style={{ fontSize: 12, padding: "4px 8px" }}
-        onClick={() => { if (timerRef.current) clearTimeout(timerRef.current); setConfirming(false); }}
-      >
-        取消
-      </button>
+      {open ? (
+        <div style={{
+          position: "absolute", right: 0, bottom: "100%", marginBottom: 6, zIndex: 20,
+          background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8,
+          padding: "10px 12px", boxShadow: "var(--shadow-lg)", minWidth: 240, whiteSpace: "nowrap",
+        }}>
+          <div style={{ fontSize: 12, color: "var(--red)", marginBottom: 6 }}>⚠ 清空后不可恢复，请输入密码确认</div>
+          <div style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>
+            <input
+              className="form-input"
+              type="password"
+              placeholder="当前密码"
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); setError(null); }}
+              onKeyDown={(e) => { if (e.key === "Enter") handleConfirm(); }}
+              style={{ fontSize: 12, padding: "4px 8px", flex: 1 }}
+              autoFocus
+            />
+            <button className="btn btn-danger" style={{ fontSize: 12, padding: "4px 10px", whiteSpace: "nowrap" }} disabled={loading} onClick={handleConfirm}>
+              {loading ? "…" : "确认清空"}
+            </button>
+          </div>
+          {error ? <div style={{ fontSize: 11, color: "var(--red)", marginTop: 4 }}>{error}</div> : null}
+        </div>
+      ) : null}
     </div>
   );
 }
