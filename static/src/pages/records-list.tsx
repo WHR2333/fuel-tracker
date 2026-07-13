@@ -101,8 +101,8 @@ export function RecordsListPage() {
   }
 
   React.useEffect(() => {
-    document.title = active ? `加油记录 · ${active.name} - 省点油` : "加油记录 - 省点油";
-    return () => { document.title = "省点油"; };
+    document.title = active ? `加油记录 · ${active.name} - 省油的灯` : "加油记录 - 省油的灯";
+    return () => { document.title = "省油的灯"; };
   }, [active?.name]);
 
   return (

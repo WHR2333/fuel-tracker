@@ -70,8 +70,8 @@ export function MaintDetailPage() {
 
   // Update page title — MUST be before any early return to satisfy Rules of Hooks.
   React.useEffect(() => {
-    document.title = isNew ? "添加保养 - 省点油" : "保养明细 - 省点油";
-    return () => { document.title = "省点油"; };
+    document.title = isNew ? "添加保养 - 省油的灯" : "保养明细 - 省油的灯";
+    return () => { document.title = "省油的灯"; };
   }, [isNew]);
 
   if (loading || fetching) return <EmptyState text="加载中…" />;

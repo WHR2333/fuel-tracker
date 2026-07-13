@@ -154,7 +154,7 @@ export function VehiclesPage() {
 // ---------------------------------------------------------------------------
 // TXT export / import — human-readable, round-trippable.
 // Format:
-//   # 省点油 数据导出
+//   # 省油的灯 数据导出
 //   # 导出时间: 2026-07-12T...
 //   # 车辆数: 1  加油数: 3  保养数: 1
 //   ---
@@ -189,7 +189,7 @@ export function VehiclesPage() {
 function handleExportTxt() {
   admin.export().then((data) => {
     const lines: string[] = [];
-    lines.push("# 省点油 数据导出");
+    lines.push("# 省油的灯 数据导出");
     lines.push(`# 导出时间: ${new Date().toISOString()}`);
     lines.push(`# 车辆数: ${data.vehicles.length}  加油数: ${data.records.length}  保养数: ${data.maint.length}`);
     lines.push("---");
@@ -226,7 +226,7 @@ function handleExportTxt() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `省点油_${new Date().toISOString().slice(0, 10)}.txt`;
+    a.download = `省油的灯_${new Date().toISOString().slice(0, 10)}.txt`;
     a.click();
     URL.revokeObjectURL(url);
     pushToast("已导出");

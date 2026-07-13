@@ -63,7 +63,7 @@ export function PageHeader({ activeId, onSelect, vehicles }: Props) {
           onClick={() => { if (location.pathname !== "/") navigate("/"); }}
         >
           <Fuel size={20} strokeWidth={1} style={{ marginRight: 6 }} />
-          省点油
+          省油的灯
         </h1>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <button

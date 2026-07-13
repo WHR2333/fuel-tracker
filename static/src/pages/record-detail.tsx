@@ -62,8 +62,8 @@ export function RecordDetailPage() {
   }, [vehicle?.id, rid]);
 
   React.useEffect(() => {
-    document.title = "明细 - 省点油";
-    return () => { document.title = "省点油"; };
+    document.title = "明细 - 省油的灯";
+    return () => { document.title = "省油的灯"; };
   }, []);
 
   if (loading || fetching) return <EmptyState text="加载中…" />;

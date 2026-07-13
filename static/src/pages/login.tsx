@@ -74,7 +74,7 @@ export function LoginPage() {
             style={{ width: 64, height: 64, marginBottom: "0.75rem" }}
           />
           <h1 style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text)", margin: 0 }}>
-            省点油
+            省油的灯
           </h1>
           <p style={{ fontSize: "0.85rem", color: "var(--text2)", marginTop: "0.25rem" }}>
             请登录以继续
