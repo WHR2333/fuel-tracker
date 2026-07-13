@@ -191,8 +191,11 @@ export const latestConsumption = (
       const days = Math.max(1, Math.round(
         (new Date(cur.recordDate).getTime() - new Date(prev.recordDate).getTime()) / 86400000,
       ) + 1);
-      // totalLiters from validCon includes intermediates + current.
-      const totalCost = num(cur.totalCost);
+      // Sum costs from prev full tank to current (inclusive), matching totalLiters.
+      let totalCost = 0;
+      for (let k = prevIdx; k <= i; k++) {
+        totalCost += num(sorted[k].totalCost);
+      }
       return {
         date: cur.recordDate,
         odometer: num(cur.odometer),
