@@ -13,6 +13,7 @@ import type {
   Trigger,
 } from "./types";
 import { getToken, clearToken } from "./auth";
+import { cachedFetch } from "./api-cache";
 
 const BASE = import.meta.env.VITE_API_BASE ?? "/api/v1";
 
@@ -154,8 +155,10 @@ function maintToApi(m: MaintenanceCreate): any {
 // --- Vehicles ---
 
 export const vehicles = {
-  list: async () => (await request<any[]>("GET", "/vehicles")).map(vehicleFromApi),
-  get: async (id: string) => vehicleFromApi(await request<any>("GET", `/vehicles/${id}`)),
+  list: async () => cachedFetch("vehicles", () =>
+    request<any[]>("GET", "/vehicles").then((arr) => arr.map(vehicleFromApi)), 60),
+  get: async (id: string) => cachedFetch(`vehicles/${id}`, () =>
+    request<any>("GET", `/vehicles/${id}`).then(vehicleFromApi), 60),
   create: async (v: VehicleCreate) => vehicleFromApi(await request<any>("POST", "/vehicles", vehicleToApi(v))),
   update: async (id: string, v: VehicleCreate) =>
     vehicleFromApi(await request<any>("PUT", `/vehicles/${id}`, vehicleToApi({ ...v, id }))),
@@ -166,8 +169,8 @@ export const vehicles = {
 // --- Fuel records ---
 
 export const records = {
-  list: async (vid: string) =>
-    (await request<any[]>("GET", `/vehicles/${vid}/records`)).map(recordFromApi),
+  list: async (vid: string) => cachedFetch(`records:${vid}`, () =>
+    request<any[]>("GET", `/vehicles/${vid}/records`).then((arr) => arr.map(recordFromApi)), 30),
   create: async (vid: string, r: FuelRecordCreate) =>
     recordFromApi(await request<any>("POST", `/vehicles/${vid}/records`, recordToApi(r))),
   update: async (rid: string, r: FuelRecordCreate) =>
@@ -178,8 +181,8 @@ export const records = {
 // --- Maintenance ---
 
 export const maintenance = {
-  list: async (vid: string) =>
-    (await request<any[]>("GET", `/vehicles/${vid}/maintenance`)).map(maintFromApi),
+  list: async (vid: string) => cachedFetch(`maintenance:${vid}`, () =>
+    request<any[]>("GET", `/vehicles/${vid}/maintenance`).then((arr) => arr.map(maintFromApi)), 30),
   create: async (vid: string, m: MaintenanceCreate) =>
     maintFromApi(await request<any>("POST", `/vehicles/${vid}/maintenance`, maintToApi(m))),
   update: async (mid: string, m: MaintenanceCreate) =>

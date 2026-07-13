@@ -89,6 +89,9 @@ export async function login(username: string, password: string): Promise<void> {
   setToken(data.access_token);
 }
 
+import { invalidateAll } from "./api-cache";
+
 export function logout(): void {
   clearToken();
+  invalidateAll();
 }

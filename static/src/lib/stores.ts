@@ -10,6 +10,7 @@
 //                     zero so an unchanged bump still triggers a refetch.
 
 import * as React from "react";
+import { invalidate } from "./api-cache";
 
 let vehicleVersion = 0;
 let activeVersion = 0;
@@ -22,6 +23,7 @@ const dataListeners = new Set<() => void>();
 const notify = (set: Set<() => void>) => () => { for (const l of set) l(); };
 
 export function notifyVehiclesChanged(): void {
+  invalidate("vehicles");
   vehicleVersion += 1;
   for (const l of vehicleListeners) l();
 }
@@ -35,6 +37,7 @@ export function notifyActiveVehicleChanged(): void {
 }
 
 export function notifyDataChanged(): void {
+  invalidate("records", "maintenance");
   dataVersion += 1;
   for (const l of dataListeners) l();
 }
