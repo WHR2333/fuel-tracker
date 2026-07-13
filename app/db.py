@@ -70,6 +70,14 @@ def init_db() -> None:
         except (ProgrammingError, OperationalError):
             pass  # already migrated or column type unsupported
 
+    # --- migrate: drop tank column from vehicles (no longer used) ---
+    with Session(engine) as sess:
+        try:
+            sess.execute(text("ALTER TABLE vehicles DROP COLUMN tank"))  # noqa: S608
+            sess.commit()
+        except (ProgrammingError, OperationalError):
+            pass  # already dropped
+
     # --- seed admin user if users table is empty ---
     with Session(engine) as sess:
         existing = sess.execute(select(user.User)).scalars().first()

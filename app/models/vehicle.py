@@ -1,6 +1,5 @@
 """Vehicle table."""
 from datetime import datetime
-from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy import Column, DateTime, ForeignKey, String, func
@@ -20,7 +19,6 @@ class Vehicle(SQLModel, table=True):
     )
     name: str = Field(max_length=64)
     plate: str = Field(max_length=16)
-    tank: Decimal = Field(default=Decimal("50"), max_digits=6, decimal_places=2)
     model: str = Field(default="", max_length=128)
     created_at: Optional[datetime] = Field(
         default=None,

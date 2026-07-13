@@ -8,7 +8,6 @@ export interface Vehicle {
   id: string;
   name: string;
   plate: string;
-  tank: number | string;
   model: string;
   createdAt?: string;
   updatedAt?: string;
@@ -18,7 +17,6 @@ export type VehicleCreate = {
   id?: string;
   name: string;
   plate: string;
-  tank: number | string;
   model: string;
 };
 

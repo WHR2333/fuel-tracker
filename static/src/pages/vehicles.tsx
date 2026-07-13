@@ -10,7 +10,7 @@ import type { Vehicle, ExportPayload } from "@/lib/types";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { cardTitle, AppIcon } from "@/components/app-icon";
 import { EmptyState } from "@/components/empty-state";
-import { num, vehicleLabel } from "@/lib/format";
+import { vehicleLabel } from "@/lib/format";
 import { useActiveVehicle } from "@/lib/use-active-vehicle";
 import { pushToast } from "@/components/toast-host";
 import { notifyVehiclesChanged, notifyActiveVehicleChanged, notifyDataChanged } from "@/lib/stores";
@@ -83,7 +83,7 @@ export function VehiclesPage() {
                 <div className="vehicle-card-info">
                   <div className="vehicle-card-name">{v.name}</div>
                   <div className="vehicle-card-plate">{v.plate || "未设置车牌"} · {v.model || "未知车型"}</div>
-                  <div className="vehicle-card-stats">油箱 {num(v.tank)} L · {vehicleLabel(v)}</div>
+                  <div className="vehicle-card-stats">{vehicleLabel(v)}</div>
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
                   <button
@@ -452,7 +452,6 @@ function VehicleSheet({
 }) {
   const [name, setName] = React.useState("我的车");
   const [plate, setPlate] = React.useState("");
-  const [tank, setTank] = React.useState("50");
   const [model, setModel] = React.useState("");
 
   React.useEffect(() => {
@@ -460,12 +459,10 @@ function VehicleSheet({
     if (editing) {
       setName(editing.name);
       setPlate(editing.plate);
-      setTank(String(num(editing.tank)));
       setModel(editing.model);
     } else {
       setName("我的车");
       setPlate("");
-      setTank("50");
       setModel("");
     }
   }, [open, editing]);
@@ -475,7 +472,6 @@ function VehicleSheet({
       const payload = {
         name: name.trim() || "我的车",
         plate: plate.trim(),
-        tank: parseFloat(tank) || 50,
         model: model.trim(),
       };
       if (editing) {
@@ -507,15 +503,9 @@ function VehicleSheet({
         <label>车辆名称</label>
         <input className="form-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="我的爱车" />
       </div>
-      <div className="form-row">
-        <div className="form-group">
-          <label>车牌号</label>
-          <input className="form-input" value={plate} onChange={(e) => setPlate(e.target.value)} placeholder="京A12345" />
-        </div>
-        <div className="form-group">
-          <label>油箱容量 L</label>
-          <input className="form-input" type="number" value={tank} onChange={(e) => setTank(e.target.value)} placeholder="50" />
-        </div>
+      <div className="form-group">
+        <label>车牌号</label>
+        <input className="form-input" value={plate} onChange={(e) => setPlate(e.target.value)} placeholder="京A12345" />
       </div>
       <div className="form-group">
         <label>车型（选填）</label>

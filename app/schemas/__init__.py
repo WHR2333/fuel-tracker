@@ -11,7 +11,6 @@ from pydantic import BaseModel, ConfigDict, Field
 class VehicleBase(BaseModel):
     name: str = Field(max_length=64)
     plate: str = Field(max_length=16)
-    tank: Decimal = Field(default=Decimal("50"), ge=0)
     model: str = Field(default="", max_length=128)
 
 

@@ -19,7 +19,7 @@ interface Props {
 export function VehicleSelect({ vehicles, activeId, onSelect, compact, centered }: Props) {
   if (vehicles.length === 0) return null;
   const active = vehicles.find((v) => v.id === activeId) ?? vehicles[0];
-  const modelText = active.model?.trim() ? active.model : `油箱 ${active.tank} L`;
+  const modelText = active.model?.trim() ? active.model : active.plate || "";
   return (
     <div
       style={{

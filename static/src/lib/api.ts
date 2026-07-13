@@ -65,7 +65,6 @@ function vehicleFromApi(v: any): Vehicle {
     id: v.id,
     name: v.name,
     plate: v.plate,
-    tank: v.tank,
     model: v.model,
     createdAt: v.created_at,
     updatedAt: v.updated_at,
@@ -77,7 +76,6 @@ function vehicleToApi(v: VehicleCreate): any {
     id: v.id,
     name: v.name,
     plate: v.plate,
-    tank: typeof v.tank === "string" ? parseFloat(v.tank) || 0 : v.tank,
     model: v.model,
   };
 }

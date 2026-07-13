@@ -46,7 +46,6 @@ def create_vehicle(
         user_id=current.id,
         name=payload.name,
         plate=payload.plate,
-        tank=payload.tank,
         model=payload.model,
     )
     session.add(vehicle)
@@ -74,7 +73,6 @@ def update_vehicle(
     v = get_user_vehicle(vid, current.id, session)
     v.name = payload.name
     v.plate = payload.plate
-    v.tank = payload.tank
     v.model = payload.model
     session.add(v)
     session.flush()
