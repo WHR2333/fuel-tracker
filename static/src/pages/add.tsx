@@ -10,7 +10,7 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { records as api } from "@/lib/api";
 import type { FuelRecord, FuelRecordCreate, FullTank, Vehicle } from "@/lib/types";
-import { fuelLabel, nowDatetimeLocal } from "@/lib/format";
+import { fuelLabel, nowDatetimeLocal, num } from "@/lib/format";
 import { pushToast } from "@/components/toast-host";
 import { notifyDataChanged } from "@/lib/stores";
 import { countConsecutiveNonFull } from "@/lib/record-status";
@@ -40,7 +40,7 @@ const initial = (): FuelRecordCreate => ({
   station: "",
   fuelType: "92",
   note: "",
-  light: false,
+  light: true,
   skippedPrevious: false,
 });
 
@@ -65,12 +65,13 @@ export function AddPage() {
     }).then((rs) => {
       setAllRecords(rs);
       if (rs.length > 0) {
-        const sorted = [...rs].sort((a, b) => b.recordDate.localeCompare(a.recordDate));
+        const sorted = [...rs].sort((a, b) => num(b.odometer) - num(a.odometer));
         const latest = sorted[0];
         setLast(latest);
         const price = pn(String(latest.price));
         setForm((f) => ({
           ...f,
+          odometer: num(latest.odometer) || f.odometer,
           price: price > 0 ? r2(price) : f.price,
           station: latest.station || f.station,
           fuelType: latest.fuelType || f.fuelType,
@@ -152,13 +153,21 @@ export function AddPage() {
   // ---------- save ----------
 
   const doSave = async () => {
+    // Validate required fields.
+    const odo = pn(String(form.odometer));
+    const lit = pn(String(form.liters));
+    const pri = pn(String(form.price));
+    if (!odo || odo <= 0) { pushToast("请填写里程表"); return; }
+    if (!lit || lit <= 0) { pushToast("请填写加油量"); return; }
+    if (!pri || pri <= 0) { pushToast("请填写单价"); return; }
+
     setSubmitting(true);
     try {
       const payload: FuelRecordCreate = {
         ...form,
-        odometer: pn(String(form.odometer)) || 0,
-        liters: pn(String(form.liters)) || 0,
-        price: pn(String(form.price)) || 0,
+        odometer: odo,
+        liters: lit,
+        price: pri,
         pumpAmount: pn(String(form.pumpAmount)) || null,
         paidAmount: pn(String(form.paidAmount)) || null,
       };
@@ -325,14 +334,18 @@ export function AddPage() {
 
         <div className="form-row">
           <div className="form-group">
-            <label>是否加满</label>
-            <select className="form-input" value={form.fullTank} onChange={(e) => setForm((f) => ({ ...f, fullTank: e.target.value as FullTank }))}>
-              <option value="yes">加满</option>
-              <option value="no">未加满</option>
-            </select>
+            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={form.fullTank === "yes"}
+                onChange={(e) => setForm((f) => ({ ...f, fullTank: e.target.checked ? "yes" : "no" as FullTank }))}
+                style={{ width: 18, height: 18 }}
+              />
+              加满跳枪
+            </label>
           </div>
           <div className="form-group">
-            <label style={{ display: "flex", alignItems: "center", gap: 8, paddingTop: 24 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <input
                 type="checkbox"
                 checked={form.light === true}
