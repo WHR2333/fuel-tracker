@@ -529,7 +529,7 @@ function CompareTab({ records, vehicle }: { records: FuelRecord[]; vehicle: stri
   const [selected, setSelected] = React.useState(initialKey);
   React.useEffect(() => setSelected(initialKey), [initialKey]);
 
-  const ref = REF_CONSUMPTION.find((m) => m.key === selected)!;
+  const ref = REF_CONSUMPTION.find((m) => m.key === selected) ?? REF_CONSUMPTION[0];
   const max = Math.max(myCon, ref.l_per_100) * 1.3;
   const pct = (v: number) => (v / max) * 100;
 

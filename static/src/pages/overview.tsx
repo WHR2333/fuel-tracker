@@ -337,7 +337,7 @@ function YearlyComparisonCard({ records, range, onRangeChange }: { records: Fuel
             if (c > 0 && c < 50) {
               const m = (cur.recordDate ?? "").slice(0, 7);
               if (!conByMonth.has(m)) conByMonth.set(m, []);
-              conByMonth.get(m)!.push(c);
+              (conByMonth.get(m) ?? []).push(c);
             }
           }
           break;
