@@ -198,9 +198,10 @@ export const latestConsumption = (
       ) + 1);
       // Sum pump amounts (机显) for per-km calculation.
       // Sum paid amounts (实付) for cumulative expenses.
+      // Exclude previous full tank's cost (it's the baseline, not consumed in this segment).
       let pumpCost = 0;
       let paidCost = 0;
-      for (let k = prevIdx; k <= i; k++) {
+      for (let k = prevIdx + 1; k <= i; k++) {
         pumpCost += num(sorted[k].pumpAmount ?? sorted[k].totalCost);
         paidCost += num(sorted[k].paidAmount ?? sorted[k].pumpAmount ?? sorted[k].totalCost);
       }

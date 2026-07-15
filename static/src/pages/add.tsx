@@ -13,7 +13,6 @@ import type { FuelRecord, FuelRecordCreate, FullTank, Vehicle } from "@/lib/type
 import { fuelLabel, nowDatetimeLocal, num } from "@/lib/format";
 import { pushToast } from "@/components/toast-host";
 import { notifyDataChanged } from "@/lib/stores";
-import { countConsecutiveNonFull } from "@/lib/record-status";
 import { Lightbulb, SkipForward } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { vehicles as vApi } from "@/lib/api";
