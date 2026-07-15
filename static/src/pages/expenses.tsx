@@ -82,7 +82,7 @@ export function ExpensesPage() {
   const fuelScoped = filterByDateRange(fuel, range.start, range.end);
   const maintScoped = filterByDateRange(maint, range.start, range.end);
 
-  const fuelTotal = fuelScoped.reduce((s, r) => s + num(r.paidAmount ?? r.totalCost), 0);
+  const fuelTotal = fuelScoped.reduce((s, r) => s + num(r.paidAmount ?? r.pumpAmount ?? r.totalCost), 0);
   const maintTotal = maintScoped.reduce((s, r) => s + num(r.cost), 0);
   const grandTotal = fuelTotal + maintTotal;
 
@@ -103,7 +103,7 @@ export function ExpensesPage() {
     const k = (r.recordDate ?? "").slice(0, 7);
     if (!k) continue;
     let b = monthly.get(k) ?? { fuel: 0, maint: 0 };
-    b.fuel += num(r.paidAmount ?? r.totalCost);
+    b.fuel += num(r.paidAmount ?? r.pumpAmount ?? r.totalCost);
     monthly.set(k, b);
   }
   for (const m of maintScoped) {

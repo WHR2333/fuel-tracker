@@ -65,7 +65,7 @@ export function RecordsListPage() {
     : records.filter((r) => (r.recordDate ?? "").slice(0, 4) === year);
 
   // Info bar aggregates.
-  const totalCost = scoped.reduce((s, r) => s + num(r.paidAmount ?? r.totalCost), 0);
+  const totalCost = scoped.reduce((s, r) => s + num(r.paidAmount ?? r.pumpAmount ?? r.totalCost), 0);
   const byDate = [...scoped].sort((a, b) => a.recordDate.localeCompare(b.recordDate));
   const distance = byDate.length >= 2 ? num(byDate[byDate.length - 1].odometer) - num(byDate[0].odometer) : 0;
   const avgCon = avgConsumption(scoped);
@@ -124,7 +124,7 @@ export function RecordsListPage() {
         costPerKm = con * num(settledCard.price) / 100;
       } else if (km > 0) {
         // No settled rate — use next record's actual cost.
-        costPerKm = num(next.paidAmount ?? next.totalCost) / km;
+        costPerKm = num(next.paidAmount ?? next.pumpAmount ?? next.totalCost) / km;
       }
       items.push({
         kind: "gap",
@@ -266,7 +266,7 @@ function RecordCard({ record, con, status, collapsed: globalCollapsed, onNavigat
   const dateLabel = year === CURRENT_YEAR ? date.slice(5) : date;
   const conText = con != null ? `${con.toFixed(2)}升/百公里` : null;
   const odo = Math.round(num(record.odometer));
-  const cost = num(record.paidAmount ?? record.totalCost).toFixed(2);
+  const cost = num(record.paidAmount ?? record.pumpAmount ?? record.totalCost).toFixed(2);
   const price = num(record.price).toFixed(2);
   const liters = `+${num(record.liters).toFixed(2)}升`;
   const fullTank = record.fullTank === "yes";

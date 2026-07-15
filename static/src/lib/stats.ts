@@ -580,8 +580,8 @@ export const calcOverview = (records: FuelRecord[]): OverviewSummary | null => {
   const byDate = [...records].sort(
     (a, b) => new Date(a.recordDate).getTime() - new Date(b.recordDate).getTime(),
   );
-  const firstDate = byDate[0].recordDate.slice(0, 10);
-  const lastDate = byDate[byDate.length - 1].recordDate.slice(0, 10);
+  const firstDate = (byDate[0].recordDate ?? "").slice(0, 10);
+  const lastDate = (byDate[byDate.length - 1].recordDate ?? "").slice(0, 10);
   const spanDays = Math.max(1, Math.round(
     (new Date(lastDate).getTime() - new Date(firstDate).getTime()) / 86400000,
   ) + 1);
@@ -623,7 +623,7 @@ export const calcFuelTypeStats = (records: FuelRecord[]): FuelTypeStat[] => {
   for (const r of records) {
     const key = r.fuelType || "未知";
     if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(r);
+    (groups.get(key) ?? []).push(r);
   }
 
   const result: FuelTypeStat[] = [];
