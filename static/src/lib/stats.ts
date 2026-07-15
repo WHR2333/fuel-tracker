@@ -40,7 +40,8 @@ export interface ConsumptionPoint {
 export interface Stats {
   count: number;
   totalFuel: number;
-  totalCost: number;
+  totalCost: number;   // sum of pumpAmount (机显金额)
+  paidCost: number;     // sum of paidAmount (实付金额)
   totalDist: number;
   avgConsumption: number; // L/100km
   avgPrice: number; // ¥/L
@@ -144,7 +145,8 @@ export const calcStats = (records: FuelRecord[]): Stats | null => {
   }
 
   const totalFuel = sorted.reduce((s, r) => s + num(r.liters), 0);
-  const totalCost = sorted.reduce((s, r) => s + num(r.totalCost), 0);
+  const totalCost = sorted.reduce((s, r) => s + num(r.totalCost), 0);  // 机显金额
+  const paidCost = sorted.reduce((s, r) => s + num(r.paidAmount ?? r.pumpAmount ?? r.totalCost), 0);  // 实付金额
   const totalDist =
     sorted.length >= 2 ? num(sorted[sorted.length - 1].odometer) - num(sorted[0].odometer) : 0;
   const avgPrice = totalFuel > 0 ? totalCost / totalFuel : 0;
@@ -156,6 +158,7 @@ export const calcStats = (records: FuelRecord[]): Stats | null => {
     count: sorted.length,
     totalFuel,
     totalCost,
+    paidCost,
     totalDist,
     avgConsumption: avgCon,
     avgPrice,
@@ -173,19 +176,19 @@ export const latestConsumption = (
   date: string;
   odometer: number;
   l_per_100: number;
-  costPerKm: number;
+  costPerKm: number;   // based on pumpAmount (机显), not paidAmount
   days: number;
   distance: number;
   dailyAvg: number;
   liters: number;
-  totalCost: number;
+  pumpCost: number;     // 机显金额 total (for per-km calc)
+  paidCost: number;     // 实付金额 total (for cumulative expenses)
 } | null => {
   const sorted = [...records].sort((a, b) => num(a.odometer) - num(b.odometer));
   for (let i = sorted.length - 1; i > 0; i--) {
     const c = validCon(sorted, i);
     if (c != null) {
       const cur = sorted[i];
-      // Find the previous full tank record (跳枪).
       let prevIdx = i - 1;
       while (prevIdx >= 0 && sorted[prevIdx].fullTank !== "yes") prevIdx--;
       const prev = sorted[prevIdx];
@@ -193,21 +196,25 @@ export const latestConsumption = (
       const days = Math.max(1, Math.round(
         (new Date(cur.recordDate).getTime() - new Date(prev.recordDate).getTime()) / 86400000,
       ) + 1);
-      // Sum costs from prev full tank to current (inclusive), matching totalLiters.
-      let totalCost = 0;
+      // Sum pump amounts (机显) for per-km calculation.
+      // Sum paid amounts (实付) for cumulative expenses.
+      let pumpCost = 0;
+      let paidCost = 0;
       for (let k = prevIdx; k <= i; k++) {
-        totalCost += num(sorted[k].totalCost);
+        pumpCost += num(sorted[k].pumpAmount ?? sorted[k].totalCost);
+        paidCost += num(sorted[k].paidAmount ?? sorted[k].pumpAmount ?? sorted[k].totalCost);
       }
       return {
         date: cur.recordDate,
         odometer: num(cur.odometer),
         l_per_100: c.l_per_100,
-        costPerKm: dist > 0 ? totalCost / dist : 0,
+        costPerKm: dist > 0 ? pumpCost / dist : 0,
         days,
         distance: dist,
         dailyAvg: dist / days,
         liters: c.totalLiters,
-        totalCost,
+        pumpCost,
+        paidCost,
       };
     }
   }
@@ -290,7 +297,7 @@ export const calcMonthly = (records: FuelRecord[]): MonthlyBucket[] => {
       buckets.set(key, b);
     }
     b.count += 1;
-    b.totalCost += num(r.totalCost);
+    b.totalCost += num(r.paidAmount ?? r.pumpAmount ?? r.totalCost);  // 实付金额
     b.totalFuel += num(r.liters);
     const odo = num(r.odometer);
     if (b.count === 1) b.firstOdo = odo;
@@ -321,7 +328,7 @@ export const calcYearly = (records: FuelRecord[]) => {
       buckets.set(y, b);
     }
     b.count += 1;
-    b.totalCost += num(r.totalCost);
+    b.totalCost += num(r.paidAmount ?? r.pumpAmount ?? r.totalCost);  // 实付金额
     b.totalFuel += num(r.liters);
   }
   const byYear = new Map<string, { firstOdo: number; lastOdo: number }>();
@@ -371,7 +378,7 @@ export const calcStationStats = (records: FuelRecord[]): StationStat[] => {
       groups.set(name, g);
     }
     g.count += 1;
-    g.totalCost += num(r.totalCost);
+    g.totalCost += num(r.paidAmount ?? r.pumpAmount ?? r.totalCost);  // 实付金额
     g.totalLiters += num(r.liters);
   }
   const arr = Array.from(groups.entries()).map(([name, g]) => ({
@@ -544,7 +551,8 @@ export interface OverviewSummary {
   totalRecords: number;
   fullCount: number;
   fullRate: number;
-  totalCost: number;
+  totalCost: number;   // 机显金额
+  paidCost: number;     // 实付金额
   totalFuel: number;
   totalDist: number;
   avgConsumption: number;
@@ -582,6 +590,7 @@ export const calcOverview = (records: FuelRecord[]): OverviewSummary | null => {
     fullCount: fullRecords.length,
     fullRate: (fullRecords.length / records.length) * 100,
     totalCost: stats.totalCost,
+    paidCost: stats.paidCost,
     totalFuel: stats.totalFuel,
     totalDist: stats.totalDist,
     avgConsumption: stats.avgConsumption,
@@ -619,7 +628,7 @@ export const calcFuelTypeStats = (records: FuelRecord[]): FuelTypeStat[] => {
   const result: FuelTypeStat[] = [];
   for (const [fuelType, recs] of groups) {
     const totalFuel = recs.reduce((s, r) => s + num(r.liters), 0);
-    const totalCost = recs.reduce((s, r) => s + num(r.totalCost), 0);
+    const totalCost = recs.reduce((s, r) => s + num(r.paidAmount ?? r.pumpAmount ?? r.totalCost), 0);  // 实付金额
 
     // Calculate avg consumption for this fuel type using full tank method.
     const sorted = [...recs].sort((a, b) => num(a.odometer) - num(b.odometer));

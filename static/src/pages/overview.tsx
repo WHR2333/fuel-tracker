@@ -119,7 +119,7 @@ export function OverviewPage() {
             <StatItem label="行驶距离" value={Math.round(latest.distance)} unit="km" />
             <StatItem label="日均行程" value={latest.dailyAvg.toFixed(1)} unit="km/天" />
             <StatItem label="燃油消耗" value={latest.liters.toFixed(2)} unit="升" />
-            <StatItem label="油费支出" value={latest.totalCost.toFixed(2)} unit="元" />
+            <StatItem label="油费支出" value={latest.paidCost.toFixed(2)} unit="元" />
           </div>
         ) : (
           <div style={{ fontSize: 14, color: "var(--text2)", padding: "12px 0", textAlign: "center" }}>
@@ -195,7 +195,7 @@ function StatsCard({ records, range, onRangeChange, loading }: { records: FuelRe
           <MiniStat label="平均里程" value={avgKmPerDay != null ? avgKmPerDay.toFixed(1) : "—"} unit="公里/天" />
           <MiniStat label="平均油费" value={avgCostPerKm != null ? avgCostPerKm.toFixed(2) : "—"} unit="元/公里" color="var(--orange)" />
           <MiniStat label="累计行程" value={Math.round(num(stats.totalDist)).toLocaleString()} unit="公里" />
-          <MiniStat label="累计油费" value={num(stats.totalCost).toFixed(1)} unit="元" color="var(--orange)" />
+          <MiniStat label="累计油费" value={num(stats.paidCost).toFixed(1)} unit="元" color="var(--orange)" />
           <MiniStat label="加油次数" value={String(scoped.length)} unit="次" />
         </div>
       )}

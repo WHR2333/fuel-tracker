@@ -187,7 +187,7 @@ function OverviewTab({ records }: { records: FuelRecord[] }) {
     { label: "记录总数", value: String(ov.totalRecords), unit: "条" },
     { label: "满箱次数", value: String(ov.fullCount), unit: "次" },
     { label: "加满率", value: ov.fullRate.toFixed(0), unit: "%" },
-    { label: "总花费", value: ov.totalCost.toFixed(2), unit: "元" },
+    { label: "总花费", value: ov.paidCost.toFixed(2), unit: "元" },
     { label: "总加油量", value: ov.totalFuel.toFixed(2), unit: "升" },
     { label: "总里程", value: Math.round(ov.totalDist), unit: "km" },
     { label: "平均油耗", value: ov.avgConsumption > 0 ? ov.avgConsumption.toFixed(2) : "—", unit: "L/100km", highlight: true },
