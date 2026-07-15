@@ -160,6 +160,10 @@ export function AddPage() {
     if (!odo || odo <= 0) { pushToast("请填写里程表"); return; }
     if (!lit || lit <= 0) { pushToast("请填写加油量"); return; }
     if (!pri || pri <= 0) { pushToast("请填写单价"); return; }
+    if (form.recordDate && new Date(form.recordDate).getTime() > Date.now()) {
+      pushToast("加油时间不能是未来时间");
+      return;
+    }
 
     setSubmitting(true);
     try {
