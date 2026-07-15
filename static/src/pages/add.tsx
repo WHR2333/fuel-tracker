@@ -70,7 +70,6 @@ export function AddPage() {
         const price = pn(String(latest.price));
         setForm((f) => ({
           ...f,
-          odometer: num(latest.odometer) || f.odometer,
           price: price > 0 ? r2(price) : f.price,
           station: latest.station || f.station,
           fuelType: latest.fuelType || f.fuelType,
